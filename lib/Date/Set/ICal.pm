@@ -5,7 +5,7 @@
 
 =head1 NAME
 
-Date::Set::ICal - a Infinity + Date::ICal object
+Date::Set::ICal - an Infinity + Date::ICal object
 
 =head1 SYNOPSIS
 
@@ -13,9 +13,7 @@ Date::Set::ICal - a Infinity + Date::ICal object
 
 This module is for Date::Set internal use only!
 
-=head1 AUTHOR
-
-	Flavio Soibelmann Glock <fglock@pucrs.br>
+=head1 METHODS
 
 =cut
 
@@ -38,92 +36,16 @@ use overload
 	'-' => \&sub,
 	'+' => \&add,
 	'/' => \&div,
-	qw("" as_string);
-
-sub add {
-	my ($tmp1, $tmp2) = @_;
-	# print "+";
-	# print " [ical:add:", $tmp1, " + ", ref($tmp2), "->", $tmp2, "] ";
-
-	# unless (ref($tmp2) and $tmp2->isa(__PACKAGE__)) { $tmp2 = __PACKAGE__->new($tmp2); }
-	return __PACKAGE__->new( $tmp1->{epoch} + $tmp2 );
-
-	# return Date::ICal::add($tmp1, $tmp2);
-}
-
-sub sub {
-	my ($tmp1, $tmp2, $inverted) = @_;
-	# print " [ical:sub:", $tmp1, " - ", ref($tmp2), "->", $tmp2, "] ";
-	# print " [duration:", $tmp1->epoch, "] ";
-	# print "-";
-
-	$tmp1 = $tmp1->{epoch} if ref($tmp1);
-	$tmp2 = $tmp2->{epoch} if ref($tmp2);
-
-	return $tmp2 - $tmp1 if $inverted;
-	return $tmp1 - $tmp2;
-
-	# if it could represent a duration
-	# return __PACKAGE__->new( epoch => ($tmp2->epoch - $tmp1->epoch) ) if $inverted;
-	# return __PACKAGE__->new( epoch => ($tmp1->epoch - $tmp2->epoch) );
-}
-
-sub div {
-	my ($tmp1, $tmp2) = @_;
-	# print "/";
-	return $tmp1 / $tmp2;
-}
-
-sub spaceship {
-	my ($tmp1, $tmp2, $inverted) = @_;
-	return 1 unless defined($tmp2);
-
-	# print "=";
-	# print " [ical:cmp:", $tmp1, "<=>", ref($tmp2), "->", $tmp2, "] ";
-
-	# ???
-	# return 1 if Set::Infinite::Element_Inf::is_null($tmp2);
-
-	unless ( ref($tmp2) ) {                                   # and $tmp2->isa(__PACKAGE__) ) {
-		# print " [ical:cmp:new] ";
-		# print "N $tmp2 ";
-
-		if ($inverted) {
-			return $tmp2 <=> $tmp1->{epoch};
-		}
-		return $tmp1->{epoch} <=> $tmp2;
-
-		# $tmp2 = __PACKAGE__->new($tmp2) ;
-	}
-	elsif ( ref($tmp2) eq 'Set::Infinite::Element_Inf' ) {    # $tmp2->isa('Set::Infinite::Element_Inf')) {
-		# print " [ical:cmp:inf] ";
-		# print "I";
-		if ($inverted) {
-			return Set::Infinite::Element_Inf::spaceship($tmp2, $tmp1);
-		}
-		return Set::Infinite::Element_Inf::spaceship($tmp1, $tmp2);
-	}
-
-	# print "C";
-
-	# most frequent case
-
-	# $tmp1->{epoch} = $tmp1->epoch unless $tmp1->{epoch};
-	# $tmp2->{epoch} = $tmp2->epoch unless $tmp2->{epoch};
-
-	if ($inverted) {
-		return $tmp2->{epoch} <=> $tmp1->{epoch};
-	}
-	return $tmp1->{epoch} <=> $tmp2->{epoch};
-}
-
-sub as_string {
-	my ($self) = shift;
-	$self->{string} = $self->ical unless $self->{string};
-	return $self->{string};
-}
+    qw("" as_string);
 
 %new_cache = ();
+
+=head2 $new( $self, $arg)
+
+$arg can be a string, another Date::Set::ICal object, 
+a Date::ICal object, or a Set::Infinite::Element_Inf object.
+
+=cut
 
 sub new {
 	my ($self) = shift;
@@ -200,8 +122,138 @@ sub new {
 	return $self;
 }
 
+    
+=head2 $self->add($arg)
+
+An operation; what gets called when you use the + operator. 
+
+=cut
+
+sub add {
+	my ($tmp1, $tmp2) = @_;
+	# print "+";
+	# print " [ical:add:", $tmp1, " + ", ref($tmp2), "->", $tmp2, "] ";
+
+	# unless (ref($tmp2) and $tmp2->isa(__PACKAGE__)) { $tmp2 = __PACKAGE__->new($tmp2); }
+	return __PACKAGE__->new( $tmp1->{epoch} + $tmp2 );
+
+	# return Date::ICal::add($tmp1, $tmp2);
+}
+
+=head2 $self->sub($arg)
+
+Subtraction; what gets called when you use the - operator. 
+
+=cut
+
+sub sub {
+	my ($tmp1, $tmp2, $inverted) = @_;
+	# print " [ical:sub:", $tmp1, " - ", ref($tmp2), "->", $tmp2, "] ";
+	# print " [duration:", $tmp1->epoch, "] ";
+	# print "-";
+
+	$tmp1 = $tmp1->{epoch} if ref($tmp1);
+	$tmp2 = $tmp2->{epoch} if ref($tmp2);
+
+	return $tmp2 - $tmp1 if $inverted;
+	return $tmp1 - $tmp2;
+
+	# if it could represent a duration
+	# return __PACKAGE__->new( epoch => ($tmp2->epoch - $tmp1->epoch) ) if $inverted;
+	# return __PACKAGE__->new( epoch => ($tmp1->epoch - $tmp2->epoch) );
+}
+
+=head2 $self->div($arg)
+
+Division; what gets called when you use the / operator.
+
+(Document what it means to divide a date, exactly.)
+
+=cut
+
+sub div {
+	my ($tmp1, $tmp2) = @_;
+	# print "/";
+	return $tmp1 / $tmp2;
+}
+
+=head2 spaceship
+
+A comparison operator; what gets called when you
+use >, >=, ==, <=, or <. 
+
+=cut
+
+sub spaceship {
+	my ($tmp1, $tmp2, $inverted) = @_;
+	return 1 unless defined($tmp2);
+
+	# print "=";
+	# print " [ical:cmp:", $tmp1, "<=>", ref($tmp2), "->", $tmp2, "] ";
+
+	# ???
+	# return 1 if Set::Infinite::Element_Inf::is_null($tmp2);
+
+	unless ( ref($tmp2) ) {                                   # and $tmp2->isa(__PACKAGE__) ) {
+		# print " [ical:cmp:new] ";
+		# print "N $tmp2 ";
+
+		if ($inverted) {
+			return $tmp2 <=> $tmp1->{epoch};
+		}
+		return $tmp1->{epoch} <=> $tmp2;
+
+		# $tmp2 = __PACKAGE__->new($tmp2) ;
+	}
+	elsif ( ref($tmp2) eq 'Set::Infinite::Element_Inf' ) {    # $tmp2->isa('Set::Infinite::Element_Inf')) {
+		# print " [ical:cmp:inf] ";
+		# print "I";
+		if ($inverted) {
+			return Set::Infinite::Element_Inf::spaceship($tmp2, $tmp1);
+		}
+		return Set::Infinite::Element_Inf::spaceship($tmp1, $tmp2);
+	}
+
+	# print "C";
+
+	# most frequent case
+
+	# $tmp1->{epoch} = $tmp1->epoch unless $tmp1->{epoch};
+	# $tmp2->{epoch} = $tmp2->epoch unless $tmp2->{epoch};
+
+	if ($inverted) {
+		return $tmp2->{epoch} <=> $tmp1->{epoch};
+	}
+	return $tmp1->{epoch} <=> $tmp2->{epoch};
+}
+
+=head2 $self->as_string
+
+Stringifies the object; what gets called if you put
+one of these objects in doublequotes.
+
+=cut
+
+sub as_string {
+	my ($self) = shift;
+	$self->{string} = $self->ical unless $self->{string};
+	return $self->{string};
+}
+
+=head2 mode
+
+(Why is this here?)
+
+=cut
+
 sub mode {
 	return @_;
 }
+
+=head1 AUTHOR
+
+	Flavio Soibelmann Glock <fglock@pucrs.br>
+
+=cut
 
 1;

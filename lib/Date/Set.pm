@@ -10,13 +10,14 @@ package Date::Set;
 
 use Set::Infinite ':all'; 
 use vars qw(@ISA @EXPORT @EXPORT_OK $VERSION $DEBUG
-    $future $past $forever
+    $future $past $forever $never
     %freq %weekday
 );
+use Carp;
 @ISA = qw(Set::Infinite);
 @EXPORT = qw();
 @EXPORT_OK = qw(type);
-$VERSION = (qw'$Revision: 1.4 $')[1];
+$VERSION = (qw'$Revision: 1.05 $')[1];
 
 =head1 NAME
 
@@ -27,9 +28,9 @@ Date::Set - Date set math
 	use Date::Set;
 
 	my $interval = Date::Set->new('20010501')->quantize(unit=>'months');
-	print "This month: ", $interval, "\n\n";
-	print "Weeks this month: ", $interval->quantize(unit=>'weeks'), "\n\n";
-	print "Tuesdays this month: ", $interval->quantize(unit=>'weeks')->
+	# print "This month: ", $interval, "\n\n";
+	# print "Weeks this month: ", $interval->quantize(unit=>'weeks'), "\n\n";
+	# print "Tuesdays this month: ", $interval->quantize(unit=>'weeks')->
 	    offset( mode => 'begin', unit=>'days', value => [ 2, 3] );
 
     # TODO: add some examples of RRULE syntax.
@@ -61,7 +62,7 @@ Set::Infinite::type('Date::Set::ICal');
 $future  = &inf; 
 $past    = -&inf;   
 $forever = __PACKAGE__->new($past, $future);
-
+$never   = __PACKAGE__->new();
 
 =head2 event
 
@@ -77,7 +78,7 @@ sub event   { $forever }
 
 sub print {
 	my ($self, %parm) = @_;
-	print "\n $parm{title} = ",$self,"\n" if $DEBUG;
+	 print "\n $parm{title} = ",$self,"\n" if $DEBUG;
 	return $self;
 }
 
@@ -254,15 +255,86 @@ sub rrule { # freq, &method(); optional: interval, until, count
 
 	if (exists $parm{BYDAY}) {
 		my $BYDAY = $when;
-		my @by = (); foreach ( map { $weekday{$_} } @{$parm{BYDAY}} ) { push @by, $_, $_+1; }
-		$when = $BYDAY->intersection(
-			$BYDAY->quantize(unit=>'weeks', strict=>0)
-			# ->print (title=>'weeks')
-			->offset(mode=>'circle', unit=>'days', value=>[@by], strict=>0 )
-			# ->print (title=>'days')
-		)->no_cleanup; 
+		#   Each BYDAY value can also be preceded by a positive (+n) or negative
+		#   (-n) integer. If present, this indicates the nth occurrence of the
+		#   specific day within the MONTHLY or YEARLY RRULE.
+
+		# classify BYDAY parameters between indexed and non-indexed
+		my (@byday, @indexed_byday);
+		foreach (@{$parm{BYDAY}}) {
+			if (/\d/) { push @indexed_byday, $_ } else { push @byday, $_ };
+		}
+
+		my $non_indexed = $never;
+		my $indexed = $never;
+
+		if ($#byday >= 0) {
+			# non-indexed BYDAY
+			my @by = (); foreach ( map { $weekday{$_} } @{$parm{BYDAY}} ) { push @by, $_, $_+1; }
+			$non_indexed = $BYDAY->intersection(
+				$BYDAY->quantize(unit=>'weeks', strict=>0)
+				# ->print (title=>'weeks')
+				->offset(mode=>'circle', unit=>'days', value=>[@by], strict=>0 )
+				# ->print (title=>'days')
+			)->no_cleanup; 
+			$non_indexed->print(title=>'BYDAY');
+		}
+		if ($#indexed_byday >= 0) {
+			# indexed BYDAY
+			# print " [Indexed BYDAY (" . $indexed_byday[0] . ") ]\n";
+
+			# look at FREQ and create $base 
+			my $base;
+			if ($parm{FREQ} eq 'YEARLY') {
+				$base = $BYDAY->quantize(unit => 'years', strict=>0);
+			}
+			else {
+				# MONTHLY
+				$base = $BYDAY->quantize(unit => 'months', strict=>0);
+			}
+
+			my @index = ();
+			my @by = (); 
+			# iterate through parameters
+			foreach (@indexed_byday) {
+				# parse parameters
+				my ($index, $day) = /([\-\+]\d+)(\w+)/;
+				$day = $weekday{$day};
+
+				# TODO: get indexed days to $indexed set
+				# quantize weeks -> offset -> intersection -> select
+
+				# print " [Indexed BYDAY: $index $day, base $base ]\n";
+
+				# find out week day
+				my $weekday = $BYDAY->quantize(unit=>'weeks', strict=>0)
+						->print(title=>'weeks')
+						->offset(mode=>'begin', unit=>'days', value=>[ $day, $day + 1 ], strict=>0 );
+				$weekday->print(title=>'DAYS:');
+
+				# iterate through $base (months or years) finding out week day index
+				$indexed = $indexed->union(
+					$base->iterate( 
+						sub { $_[0]
+							->print(title=>'month') 
+							->intersection($weekday)
+							->print(title=>'month-weekday') 
+							->select( by => [ $index ] )
+							->print(title=>'selected') 
+						} 
+					)
+				);
+
+				$indexed->print(title=>'BYDAY-INDEX:'. $index .','. $day);
+
+			}
+		}
+
+		# mix indexed with non-indexed days
+		$when = $non_indexed->union($indexed);
 		$when->print(title=>'BYDAY');
-	}
+
+	} # end: BYDAY
 
 	if (exists $parm{BYHOUR}) {
 		my $BYHOUR = $when;
@@ -379,7 +451,9 @@ Note: 'unit' parameter can be years, months, days, weeks, hours, minutes, or sec
 
 'duration' and 'period' methods may change in future versions, to generate open-ended sets.
 
-'bymonth' does not accept a negative value
+'WEEKLY' does not use 'WKST'
+
+rrule syntax needs uppercase parameters
 
 =head1 AUTHOR
 
