@@ -6,7 +6,7 @@ WriteMakefile(
     'NAME'           => 'Date::Set',
     'VERSION_FROM'   => 'lib/Date/Set.pm', 
     'EXCLUDE_EXT'    => [ qw(Makefile gz LOG x~~) ],
-    'PREREQ_PM'      => {    'Set::Infinite' => '0.37_43',  
+    'PREREQ_PM'      => {    'Set::Infinite' => '0.37_74',  
                              'Date::ICal'    => '1.70',
                              'Test::Harness' => '1.23',  # we use to do tests
                              'Test::More'    => '0.31',      

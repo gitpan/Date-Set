@@ -9,7 +9,7 @@
 use strict;
 use warnings;
 use Test::More qw(no_plan);
-
+$| = 1;
 BEGIN { use_ok('Date::Set') };
 
 my $a2;
@@ -204,6 +204,8 @@ $title="***  Every other week on Tuesday and Thursday, unlimited  ***";
 #     ==> (1997 9:00 AM EDT)September 2,4,16,18,30;October 2,14,16
 #
 
+# $Set::Infinite::TRACE = 1;
+# $Set::Infinite::PRETTY_PRINT = 1;
 	$a = Date::Set->event->dtstart( start => '19970902T090000Z' )
 		->recur_by_rule( RRULE=>'FREQ=WEEKLY;INTERVAL=2;WKST=SU;BYDAY=TU,TH' );
 
@@ -242,14 +244,37 @@ $a = $set->during( start => '20020101Z');
 
 # TODO: complement() is not working properly
 
-#    is ( $a->complement( $a->min )->min, '20030301Z');
+# $Set::Infinite::TRACE = 1;
+
+    ($first, $tail) = $a->complement( $a->first )->first;
+	is("$first", 
+    '20030301Z', $title . " - #2nd");
+
+    ($first, $tail) = $tail->first;
+	is("$first", 
+    '20040301Z', $title . " - #3rd");
+
+    ($first, $tail) = $tail->first;
+	is("$first", 
+    '20050301Z', $title . " - #4th");
+
+
+    $first = "" . $a->complement( $a->first )->first;  # doesn't work without ""!
+    is ( $first, '20030301Z', 'first again');
+
+# $Set::Infinite::TRACE = 1;
+# $Set::Infinite::PRETTY_PRINT = 1;
+
+    is ( $a->complement( $a->min )->min, '20030301Z', 'min is exact');
+$Set::Infinite::TRACE = 0;
+
 
 # TODO: first() doesn't work after intersection()
 
-#    ($first, $tail) = $a->first;
-#    is("$first", '20020301Z', "first - #1");
+    ($first, $tail) = $a->first;
+    is("$first", '20020301Z', "first - #1");
 
-#    ($first, $tail) = $tail->first;
-#    is("$first", '20030301Z', "first - #2");
+    ($first, $tail) = $tail->first;
+    is("$first", '20030301Z', "first - #2");
 
 1;

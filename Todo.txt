@@ -3,8 +3,7 @@ Date-Set TODO
 
     DONE: first() should work for recur_by_rule - use same algorithm as select()
 
-    make first work with during() and other "intersections"
-        - tests fail in t/recurr.t
+    DONE: make first work with during() and other "intersections" - tests fail in t/recurr.t
 
     DONE: test recur_by_rule min
 

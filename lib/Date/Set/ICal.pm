@@ -78,7 +78,15 @@ sub new {
 
     # figure out what kind of parameter we were given and 
     # get it in a standard format, an iCalendar string
-    return $string if ref($string);
+    if ( ref($string) ) {
+        if ( UNIVERSAL::isa( $string, 'Date::ICal' )) {
+            $self = bless {}, __PACKAGE__;
+            $self->{ical}  = $string;
+            $self->{epoch} = $string->epoch;
+            return $NEW_CACHE{$string} = $self;  # cache object
+        }
+        return $string;
+    }
     return $NEW_CACHE{$string} if exists $NEW_CACHE{$string};
 
     # print " [ical:new:", join(';', @_) , "] ";

@@ -305,9 +305,16 @@ $title = "exclude-rule-at with DTSTART";
 # exclude rule
 
 $title = "exclude rule";
+# $Set::Infinite::TRACE = 1;
+# $Set::Infinite::PRETTY_PRINT = 1;
     $a->event( at    => [[ '19950101Z', '19970101Z' ]] );
+# warn "$a";
+# $Set::Infinite::TRACE = 1;
+# $Set::Infinite::PRETTY_PRINT = 1;
     $a->exclude( rule  => 'FREQ=YEARLY' );
     is("$a",       '[19950101Z..19960101Z),(19960101Z..19970101Z)', $title);
+$Set::Infinite::TRACE = 0;
+$Set::Infinite::PRETTY_PRINT = 0;
 
 # wkst
 

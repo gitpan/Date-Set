@@ -1,5 +1,11 @@
 Revision history for Perl extension Date::Set.
 
+1.24_15
+    new() accepts Date::ICal objects
+
+1.24_10
+    trace() has 'tab-levels' - trace_open/trace_close
+
 1.24_08
     more tests in t/recurr.t; some fail (commented out)
 

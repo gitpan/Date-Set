@@ -10,10 +10,23 @@ use strict;
 use warnings;
 use Test::More qw(no_plan);
 
-BEGIN { use_ok('Date::Set') };
+BEGIN { 
+    use_ok('Date::ICal');
+    use_ok('Date::Set');
+};
 use Date::Set qw($inf);
 
-$a = Date::Set->new('19971024T120000Z', '19971024T130000Z');
+my $d1 = Date::ICal->new( ical => '19971024T120000Z' );
+my $d2 = Date::ICal->new( ical => '19971024T130000Z' );
+
+my $a = Date::Set->new($d1, $d2);   # '19971024T120000Z', '19971024T130000Z'); 
+
+# = Date::Set->new('19971024T120000Z', '19971024T130000Z');
+
+# test ICal new
+
+is("$a",'[19971024T120000Z..19971024T130000Z]',
+    "new works for Date::ICal objects");
 
 # test operations unique to ICal.pm.
 

@@ -8,7 +8,7 @@ use strict;
 
 package Date::Set;
 
-use Set::Infinite;
+use Set::Infinite qw(trace_open trace_close);
 use vars qw(@ISA @EXPORT @EXPORT_OK  $AUTOLOAD $VERSION
   %FREQ %WEEKDAY %WHICH_OCCURRENCE
   $FUTURE $PAST $FOREVER $NEVER
@@ -21,7 +21,7 @@ use Carp;
 @ISA       = qw(Set::Infinite);
 @EXPORT    = qw();
 @EXPORT_OK = qw(type $inf inf);
-$VERSION = (qw'$Revision: 1.24_08 $')[1];
+$VERSION = (qw'$Revision: 1.24_16 $')[1];
 
 
 #----- initialize package globals
@@ -1030,7 +1030,8 @@ sub recur_by_rule {
     my $self = shift;
 
     # $self = $self->numeric;
-    # carp "recur_by_rule $self";
+    $self->trace_open( title => "recur_by_rule" );
+    #trace_open();
 
     # TODO - put 'if' around the parsing so that 'backtrack' doesn't have
     # to redo it
@@ -1064,7 +1065,7 @@ sub recur_by_rule {
         PERIOD   => undef, 
         DTSTART  => undef,
         INCLUDE_DTSTART => 1,  # *ALWAYS* include DTSTART in result set
-		EXCLUDE_DTSTART => 0,  # DON'T remove DTSTART from result set
+        EXCLUDE_DTSTART => 0,  # DON'T remove DTSTART from result set
         @parm,
     );
 
@@ -1160,6 +1161,17 @@ sub recur_by_rule {
         $self->_print( title => 'UNTIL' ) if $DEBUG;
         $self = $self->intersection( $PAST, $parm{UNTIL} );
     }
+    elsif (exists $parm{COUNT}  &&
+           exists $parm{FREQ}   &&
+           ($parm{COUNT} != &inf) &&
+           ($self->min   != -&inf) ) {
+        # warn "we have COUNT=$parm{COUNT} INTERVAL=$parm{INTERVAL} and start=".$self->min." and FREQ=$parm{FREQ}";
+        my $count = $parm{COUNT} * $parm{INTERVAL};
+        my $try = $self->new( $self->min )->
+                offset( unit => $FREQ{$parm{FREQ}}, value => [0,$count] );
+        # warn "set = $try";
+        $self = $self->intersection($try);
+    }
 
     # this is the backtracking interface.
     # It allows the program to defer processing if it does not have enough
@@ -1175,69 +1187,49 @@ sub recur_by_rule {
         print " BACKTRACKING \n" if $DEBUG;
 
         # print " [rrule:backtrack] \n" if $DEBUG_BT;
-        $b->{too_complex} = 1;
-        $b->{parent}      = $self->copy;
-        $b->{method}      = 'recur_by_rule';
-        $b->{param}       = [%parm];
+        $b = $self->_function( 'recur_by_rule', %parm );
+        # $b->{too_complex} = 1;
+        # $b->{parent}      = $self;  #->copy;
+        # $b->{method}      = 'recur_by_rule';
+        # $b->{param}       = [%parm];
 
         # TODO: set up {min} and {max}, if possible...
 
-
-        # now that we have a "function" we can try to find a valid subset 
-        #    if we have a COUNT
-        if (exists $parm{COUNT}  &&
-            exists $parm{FREQ}   &&
-            ($parm{COUNT} != &inf) &&
-            ($self->min   != -&inf)
-           ) {
-            # warn "we have COUNT=$parm{COUNT} INTERVAL=$parm{INTERVAL} and start=".$self->min." and FREQ=$parm{FREQ}";
-            my $count = $parm{COUNT} * $parm{INTERVAL};
-            my $try = $self->new( $self->min )->
-                offset( unit => $FREQ{$parm{FREQ}}, value => [0,$count] );
-            # warn "set = $try";
-            my $subset = $b->intersection($try);
-            # warn "subset = $subset";
-            my $size = 1 + $#{$subset->{list}};
-            if ( $size == $parm{COUNT} ) {
-                # warn "success: $size / $parm{COUNT}";
-                return $subset;
-            }
-            # TODO: if we were sure we never fail we wouldn't have to use backtracking
-            # warn "failed: $size / $parm{COUNT}";
-        }
-
-
         # try to make a subset suitable for first() iteration
         # warn "trying 'first': ";
+        # TODO: delay this it until we are actually first()'ing
         if (exists $parm{FREQ}   &&
             ($self->min   != -&inf)
            ) {
-            # warn "we have COUNT=$parm{COUNT} INTERVAL=$parm{INTERVAL} and start=".$self->min." and FREQ=$parm{FREQ}";
-            my $count = $parm{INTERVAL};
+            # warn "we have INTERVAL=$parm{INTERVAL} and start=".$self->min." and FREQ=$parm{FREQ}";
+            my $count = $parm{INTERVAL};  # if we had COUNT we weren't here
             my $try = $self->new( $self->min )->
-                offset( unit => $FREQ{$parm{FREQ}}, value => [0,$count] );
-            $try->{list}[0]{open_end} = 1;
+                offset( unit => $FREQ{$parm{FREQ}}, mode => 'begin', value => [0,$count] );
+            $try->{list}[0]{open_end} = 1;  # TODO: this is not very "OO"
             # warn "\n    set = $try";
             my $subset = $b->intersection($try);
             # warn "\n    subset = $subset";
             my $size = 1 + $#{$subset->{list}};
             if ( $size > 0 ) {
-
                 # warn "\n    self: $self \n    parm: ".join(' ', map { "$_=$parm{$_}" } keys %parm );
-
-                # move $self ahead
-                $b->{parent} = $b->{parent}->complement($try);
-                @{$b->{min}} = $try->max_a;
+                # move $self->min ahead
+                my $tail = $b->{parent}->complement($try)->_function( 'recur_by_rule', %parm );
+                my @first = $subset->first;
+                $tail = $tail->union($first[1]) if defined $first[1];
+                @{$b->{first}} = ($first[0], $tail);
                 # warn "    parent: ".$b->{parent};
-
-                return $subset->union($b);
+                # TODO: save this as first-cache
+                # my $tmp = $subset->union($b);
+                # trace_close( arg => $tmp );
+                # return $tmp;
             }
-            else {
-                # warn "failed: 'first' $size";
-            }
+            # else {
+            #    # warn "failed: 'first' $size";
+            # }
         }
 
 
+        $b->trace_close( arg => $b );
         return $b;
     }
 
@@ -1345,8 +1337,12 @@ sub recur_by_rule {
         $rrule = $when->intersection( $freq
               ->_apply_DTSTART( \%parm , \%has )
 
+              # offset to begin before intersection, because
+              # intersection would 'join' everything
+              # ->offset(mode=>'begin', value=>[0,0])
+ 
               # remove anything out of range before counting!
-              ->intersection( $parm{PERIOD} )
+              ->intersection( $parm{PERIOD} )->no_cleanup
 
               # -- COUNT works here:
               ->select( freq => 1, count => $parm{COUNT}, strict => 0 )
@@ -1383,10 +1379,15 @@ sub recur_by_rule {
     # carp "        as " . $rrule->fixtype ;
     # carp "       and " . $self->fixtype ;
 
+    my $tmp;
     if ( $has{period} ) {
-        return $self->union($rrule)->fixtype;
+        $tmp = $self->union($rrule)->fixtype;
     }
-    return $rrule->fixtype;
+    else {
+        $tmp = $rrule->fixtype;
+    }
+    trace_close;
+    return $tmp;
 }
 
 
@@ -1691,7 +1692,7 @@ sub exclude_by_rule {
 
         # print " [exclude_by_rule:backtrack] \n" if $DEBUG_BT;
         $b->{too_complex} = 1;
-        $b->{parent}      = $self->copy;
+        $b->{parent}      = $self;  # ->copy;
         $b->{method}      = 'exclude_by_rule';
         $b->{param}       = \@_;
         return $b;
