@@ -21,7 +21,7 @@ use Carp;
 @ISA       = qw(Set::Infinite);
 @EXPORT    = qw();
 @EXPORT_OK = qw( $inf inf );
-$VERSION = (qw'$Revision: 1.27 $')[1];
+$VERSION =  1.28;
 
 
 #----- initialize package globals
@@ -960,7 +960,7 @@ Deprecated. Replaced by 'event'.
 
 =cut
 
-<<__internal_docs__;
+my $__docs__ = <<__internal_docs__;
 
     recur_by_rule ( period => date-set,  DTSTART => time,
         BYMONTH => [ list ],     BYWEEKNO => [ list ],
@@ -1452,7 +1452,7 @@ sub _apply_DTSTART {
             else {
                 my ($date_ical_method) = $has =~ /(.*)s/;
                 # if ($parm{DTSTART}->date_ical->can($date_ical_method)) {
-                    $tmp = $parm{DTSTART}->date_ical->$date_ical_method;
+                    $tmp = $parm{DTSTART}->date_ical->$date_ical_method();
                 # }
                 # else {
                 #    $tmp = $parm{DTSTART}; # infinity ?
@@ -1680,7 +1680,7 @@ Deprecated. Replaced by 'exclude'.
 
 =cut
 
-<<__internal_docs__;
+$__docs__ = <<__internal_docs__;
 
     exclude_by_rule ( period => date-set, DTSTART => time,
         BYMONTH => [ list ],     BYWEEKNO => [ list ],
@@ -1752,7 +1752,7 @@ sub exclude_by_rule {
 Deprecated. Replaced by 'event'. 
 
 =cut
-<<__internal_docs__;
+$__docs__ = <<__internal_docs__;
 
     recur_by_date( list => [time1, time2, ...] )
 
@@ -1802,7 +1802,7 @@ sub recur_by_date {
 Deprecated. Replaced by 'exclude'. 
 
 =cut
-<<__internal_docs__;
+$__docs__ = <<__internal_docs__;
 
     exclude_by_date( list => [time1, time2, ...] )
 
@@ -1845,7 +1845,7 @@ sub exclude_by_date {
 Deprecated. Replaced by 'during'. 
 
 =cut
-<<__internal_docs__;
+$__docs__ = <<__internal_docs__;
 
     occurrences( period => date-set )
 

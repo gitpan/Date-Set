@@ -23,7 +23,7 @@ It also adds some cacheing for string, epoch and new.
 require Exporter;
 package Date::Set::ICal;
 use strict;
-use warnings;
+# use warnings;
 use Carp;
 use AutoLoader;
 use vars qw(
@@ -37,7 +37,7 @@ $VERSION = (qw'$Revision: 1.23 $')[1];
 
 use Date::ICal;
 
-our $inf = 10**10**10;
+$inf = 10**10**10;
 
 use overload
     '0+' =>  sub { $_[0]->{epoch} }, 

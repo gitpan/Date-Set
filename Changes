@@ -1,5 +1,8 @@
 Revision history for Perl extension Date::Set.
 
+1.28
+    runs under Perl 5.00503
+
 1.27
     disabled failing 'complement' test in t/recurr.t
 
