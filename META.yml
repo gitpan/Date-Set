@@ -1,0 +1,14 @@
+# http://module-build.sourceforge.net/META-spec.html
+#XXXXXXX This is a prototype!!!  It will change in the future!!! XXXXX#
+name:         Date-Set
+version:      1.2801
+version_from: lib/Date/Set.pm
+installdirs:  site
+requires:
+    Date::ICal:                    1.70
+    Set::Infinite:                 0.43
+    Test::Harness:                 1.23
+    Test::More:                    0.31
+
+distribution_type: module
+generated_by: ExtUtils::MakeMaker version 6.16

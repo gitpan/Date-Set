@@ -21,7 +21,7 @@ use Carp;
 @ISA       = qw(Set::Infinite);
 @EXPORT    = qw();
 @EXPORT_OK = qw( $inf inf );
-$VERSION =  1.28;
+$VERSION =  1.29;
 
 
 #----- initialize package globals
@@ -90,6 +90,18 @@ sub new {
     $self->{dtstart} = ref($class) ? $class->{dtstart} : undef;
     $self->{wkst} =    ref($class) ? $class->{wkst}    : $WKST;
     return $self;
+}
+
+sub _interval {
+    my $self = shift;
+    my $interval = shift;
+    my @by;
+    my $max = $self->count;
+    $max = $max / $interval;
+    # warn "self max is $max";
+    $max = 100 if $max == $inf;
+    push @by, $interval * $_ for 0 .. $max;
+    return $self->select( by => \@by );
 }
 
 #----- POD intro
@@ -1329,9 +1341,7 @@ sub recur_by_rule {
 
         # -- INTERVAL handling
         if ($parm{INTERVAL} > 1) {
-            $freq = $freq
-              # -- INTERVAL works here:
-              ->select( freq => $parm{INTERVAL}, count => $inf, strict => 0 );
+            $freq = $freq->_interval( $parm{INTERVAL} );
             # carp "INTERVAL $parm{INTERVAL}";
             $freq->_print(
                 title => 'FREQ('
@@ -1362,24 +1372,20 @@ sub recur_by_rule {
 
         $freq->_print( title => 'FREQ (after INTERVAL, RRULE)' ) if $DEBUG;
 
-        $rrule = $when->intersection( $freq
+        $freq = $freq
               ->_apply_DTSTART( \%parm , \%has )
-
-              # offset to begin before intersection, because
-              # intersection would 'join' everything
-              # ->offset(mode=>'begin', value=>[0,0])
- 
               # remove anything out of range before counting!
-              ->intersection( $parm{PERIOD} )->no_cleanup
+              ->intersection( $parm{PERIOD} )->no_cleanup;
 
               # -- COUNT works here:
-              ->select( freq => 1, count => $parm{COUNT}, strict => 0 )
+         $freq = $freq->select( count => $parm{COUNT} )
               # ->_print( title => 'COUNT(' . $parm{COUNT} . ')' )
 
               # ->duration( unit => 'seconds', duration => 0 ) 
-              ->offset(mode=>'begin', value=>[0,0])
-        );
-    } else {
+              ->offset(mode=>'begin', value=>[0,0]);
+        $rrule = $when->intersection( $freq );
+    } 
+    else {
 
         # is this in the RFC?
         # probably not, but we can try to find an answer anyway

@@ -1,5 +1,9 @@
 Revision history for Perl extension Date::Set.
 
+1.29
+    runs under S::I 0.5302
+    - does not use "select( freq => x )" 
+
 1.28
     runs under Perl 5.00503
 
