@@ -9,16 +9,16 @@ use strict;
 package Date::Set;
 
 use Set::Infinite ':all'; 
-use vars qw(@ISA @EXPORT @EXPORT_OK $VERSION
+use vars qw(@ISA @EXPORT @EXPORT_OK $VERSION $DEBUG
     $future $past $forever
     %freq %weekday
 );
 @ISA = qw(Set::Infinite);
 @EXPORT = qw();
 @EXPORT_OK = qw(type);
-$VERSION = '0.01';
+$VERSION = '0.02';
 
-my $DEBUG = 0;
+$DEBUG = 0;
 $Set::Infinite::TRACE = 0;
 Set::Infinite::type('Date::Set::ICal');
 
@@ -36,17 +36,24 @@ sub print {
 }
 
 sub period { # time[]
-	my (%parm) = @_;
-	return __PACKAGE__->new($parm{time}[0], $parm{time}[1]);
+	my ($class, %parm) = @_;
+	my $self;
+	$self = $class->new($parm{time}[0], $parm{time}[1]);
+	$self->print(title=>'period ' . join(':', %parm) );
+	return $self;
 }
 
 sub dtstart { # start
 	my ($self, %parm) = @_;
+	$self->print(title=>'dtstart ' . join(':', %parm) );
 	return $self->intersection($parm{start}, $future);
+	# my $tmp = __PACKAGE__->new($parm{start}, $future);
+	# return $self->intersection($tmp);
 }
 
 sub duration { # unit,duration
 	my ($self, %parm) = @_;
+	$self->print(title=>'duration');
 	return $self->offset(mode=>'begin', unit=>$parm{unit}, value=>[0, $parm{duration}]);
 }
 
@@ -79,13 +86,14 @@ sub rrule { # freq, &method(); optional: interval, until, count
 	my $rrule;
 	my $when = $self;
 
-	$parm{FREQ} = $parm{FREQ};
-	$parm{INTERVAL} = $parm{INTERVAL};
-	$parm{COUNT} = $parm{COUNT};
+	$parm{FREQ} = $parm{FREQ} . '';
+	$parm{INTERVAL} = $parm{INTERVAL} . '';
+	$parm{COUNT} = $parm{COUNT} . '';
+	$parm{UNTIL} = $parm{UNTIL} . '';
 
 	$when->print(title=>'WHEN');
 
-	if (exists $parm{UNTIL}) {
+	if ($parm{UNTIL} ne '') {
 		my $until = $when;
 		$when = $until->intersection($past, $parm{UNTIL});
 		$when->print(title=>'UNTIL');
@@ -100,22 +108,23 @@ sub rrule { # freq, &method(); optional: interval, until, count
 		$when = $bymonth->intersection(
 			$bymonth->quantize(unit=>'years', strict=>0)
 			->offset(mode=>'circle', unit=>'months', value=>[@by], strict=>0 )
-			#->print (title=>'months2' . join(',' , @by) )
+			->print (title=>'months2 ' . join(',' , @by) )
 		)->no_cleanup; 
 		$when->print(title=>'BYMONTH');
 	}
 
 	if (exists $parm{BYWEEKNO}) {
 		my $byweekno = $when;
-		my @by = (); foreach ( @{$parm{BYWEEKNO}} ) { push @by, $_-1, $_-1; }
+		my @by = (); foreach ( @{$parm{BYWEEKNO}} ) { push @by, $_-1, $_; }
 		$when = $byweekno->intersection(
 			$byweekno->quantize(unit=>'years', strict=>0)
 			#->print (title=>'year')
 			# *** Put WKST here ********** TODO *********
 			->offset(mode=>'begin', value=>[0,0] )
 			->quantize(unit=>'weeks', strict=>0)
-			#->print (title=>'week')
+			->print (title=>'week')
 			->offset(unit=>'weeks', mode=>'circle', value=>[@by], strict=>0 ) 
+			->print (title=>'week-by ' . join(',' , @by) )
 		)->no_cleanup; 
 		$when->print(title=>'BYWEEKNO');
 	}
@@ -158,7 +167,8 @@ sub rrule { # freq, &method(); optional: interval, until, count
 		my $BYHOUR = $when;
 		my @by = (); foreach ( @{$parm{BYHOUR}} ) { push @by, $_, $_+1; }
 		$when = $BYHOUR->intersection(
-			$BYHOUR->offset(mode=>'circle', unit=>'hours', value=>[@by], strict=>0 )
+			$BYHOUR->quantize(unit=>'days')
+			->offset(mode=>'circle', unit=>'hours', value=>[@by], strict=>0 )
 			# ->print (title=>'hours')
 		)->no_cleanup; 
 		$when->print(title=>'BYHOUR');
@@ -168,7 +178,8 @@ sub rrule { # freq, &method(); optional: interval, until, count
 		my $BYMINUTE = $when;
 		my @by = (); foreach ( @{$parm{BYMINUTE}} ) { push @by, $_, $_+1; }
 		$when = $BYMINUTE->intersection(
-			$BYMINUTE->offset(mode=>'circle', unit=>'minutes', value=>[@by], strict=>0 )
+			$BYMINUTE->quantize(unit=>'hours')
+			->offset(mode=>'circle', unit=>'minutes', value=>[@by], strict=>0 )
 			# ->print (title=>'minutes')
 		)->no_cleanup; 
 		$when->print(title=>'BYMINUTE');
@@ -178,7 +189,8 @@ sub rrule { # freq, &method(); optional: interval, until, count
 		my $BYSECOND = $when;
 		my @by = (); foreach ( @{$parm{BYSECOND}} ) { push @by, $_, $_+1; }
 		$when = $BYSECOND->intersection(
-			$BYSECOND->offset(mode=>'circle', unit=>'seconds', value=>[@by], strict=>0 )
+			$BYSECOND->quantize(unit=>'minutes')
+			->offset(mode=>'circle', unit=>'seconds', value=>[@by], strict=>0 )
 			# ->print (title=>'seconds')
 		)->no_cleanup; 
 		$when->print(title=>'BYSECOND');
@@ -197,18 +209,24 @@ sub rrule { # freq, &method(); optional: interval, until, count
 	}
 
 
+	# print " PARAMETERS: ", join(":", %parm), "\n";
+
 	# UNTIL and COUNT MUST NOT occur in the same 'recur'
-	if (exists $parm{UNTIL}) {
+	if ($parm{UNTIL} ne '') {
 		# UNTIL
-		$rrule = $when->intersection(
-			$when->quantize(unit=>$freq{$parm{FREQ}}, strict=>0)
-			->select(freq=>$parm{INTERVAL}, strict=>0) )
+		$when->print(title=>'UNTIL');
+		$rrule = $when->intersection($past, $parm{UNTIL});
 	}
-	else {
+	elsif ($parm{FREQ} ne '') {
 		# COUNT
+		$when->print(title=>'FREQ');
 		$rrule = $when->intersection(
 			$when->quantize(unit=>$freq{$parm{FREQ}}, strict=>0)
 			->select(freq=>$parm{INTERVAL}, count=>$parm{COUNT}, strict=>0) )
+	}
+	else {
+		$when->print(title=>'no FREQ or UNTIL');
+		$rrule = $when;
 	}
 
 	return $rrule;
@@ -264,7 +282,10 @@ Another constructor. Returns [time1 .. time2]
 
 	dtstart( start => time1 )
 
-Yet another constructor. Returns [time1 .. Inf)
+Returns set intersection [time1 .. Inf)
+
+'dtstart' puts a limit when the event starts. 
+If the event already starts AFTER dtstart, it will not change.
 
 =head2 duration
 
@@ -284,6 +305,14 @@ All intervals are modified to 'duration'.
         UNTIL => time, FREQ => freq, INTERVAL => n, COUNT => n )
 
 Implements RRULE from RFC2445. 
+
+FREQ can be: SECONDLY MINUTELY HOURLY DAILY WEEKLY MONTHLY or YEARLY
+
+BYDAY list may contain: SU MO TU WE TH FR SA
+
+BYxxx items must be array references (must be bracketed): BYMONTH => [ 10 ] or
+BYMONTH => [ 10, 11, 12 ] or BYMONTH => [ qw(10 11 12) ]
+
 (some documentation needed!)
 
 =head2 occurrences
@@ -357,10 +386,19 @@ Note: 'unit' parameter can be years, months, days, weeks, hours, minutes, or sec
 
 'rrule' method is not yet full RFC2445 compliant.
 
+'byday' does not understand (scalar . string) formats yet (like '-2FR')
+
 'duration' and 'period' methods may change in future versions, to generate open-ended sets.
+
+'bymonth' does not accept a negative value
+
+'WKST' is not implemented yet
+
+'byweekno' needs a 'weekyear' quantize unit to work properly. (See: Date::Tie)
 
 =head1 AUTHOR
 
-	Flavio Soibelmann Glock <fglock@pucrs.br>
+Flavio Soibelmann Glock <fglock@pucrs.br> 
+with the Reefknot team.
 
 =cut

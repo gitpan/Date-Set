@@ -1,14 +1,19 @@
-TODO - Date-Set version 0.01 
+TODO - Date-Set version 0.02 
+
+PERIOD
+
+	should period be open-ended?
 
 RRULE
 
-	ical.pl: BYWEEKNO / WKST
-	ical.pl: test bysetpos
-	ical.pl: check behaviour when mixing rule parts (BYWEEKNO + BYYEARDAY);
+	does UNTIL => '19970103Z' mean until 19970103T000000Z or 19970103T235959Z ?
+	current version (0.02) uses 19970103T000000Z.
+
+	BYWEEKNO / WKST
+	test bysetpos
+	check behaviour when mixing rule parts (BYWEEKNO + BYYEARDAY);
 	-- see end of 4.3.10 in RFC2445
-	-- check how to integrate with DTSTART
-	ical.pl: put UNTIL inside rrule
-	ical.pl: where do DTSTART", "DTEND", "DUE", "EXDATE" and "RDATE" belong?
+	where do DTSTART", "DTEND", "DUE", "EXDATE" and "RDATE" belong?
 	better DURATION
 	TZID
 
@@ -64,13 +69,9 @@ SYNTAX
 
 TESTS
 
-	make t/icalset.t
-
-	old: fix Bigfloat tests
-
-	put 't/element_inf.t' back
-
 	test fractional seconds
+
+	recurr.t - finish FREQ, INTERVAL, COUNT, occurrences
 
 DOCUMENTATION
 
@@ -79,7 +80,6 @@ DOCUMENTATION
 	verify, document parameter syntax everywhere
 
 	document:
-		new module 'ICalSet'
 		new method 'compact'
 		offset option 'mode=>circle'
 		new method 'list'
@@ -103,8 +103,6 @@ CACHEING
 	extra: caching for the filters. 
 
 OTHER
-
-	find a better (bigger span) gmtime/timegm -- Date::Calc or Date::Manip
 
 	check for negative-epoch errors (quantize, select, offset).
 

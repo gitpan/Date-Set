@@ -10,3 +10,5 @@ eg/ical.pl
 eg/recurring.pl
 
 t/ical.t
+t/recurr.t
+

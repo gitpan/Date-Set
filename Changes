@@ -1,5 +1,14 @@
 Revision history for Perl extension Date::Set.
 
+0.02
+	changed pod - 'dtstart' is not a constructor
+	new: t/recurr.t (unfinished)
+	$DEBUG is global
+	'period' had wrong parameters
+	explain rrule parameters
+	corrected 'exists' in rrule UNTIL, FREQ; UNTIL was wrong
+	BYHOUR didn't quantize to days; same problem with BYMINUTE and BYSECOND
+
 0.01
 	derived from Set::Infinite 0.30
 	requires Date::ICal
