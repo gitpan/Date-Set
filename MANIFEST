@@ -14,5 +14,5 @@ t/recurr.t
 t/rfc2445.t
 t/api2.t
 
-make_readme.pl
-make_htmldoc.pl
+make_readme
+make_htmldoc

@@ -1,6 +1,14 @@
 Date-Set TODO 
 (Some items apply to Set::Infinite)
 
+DTSTART
+
+    a package global $DTSTART might be useful
+
+WKST
+
+    only exists as global and as recur parameter. Make it an object variable like dtstart.
+
 EXCLUDE
 
     exclude might have problems applying an unbounded recurrence to another unbounded recurrence
@@ -57,6 +65,8 @@ TESTS
 
 DOCUMENTATION
 
+    Move whatever is interesting in recur_by_rule() into event() docs.
+
 	document:
 		new method 'compact'
 		offset option 'mode=>circle'
@@ -66,6 +76,25 @@ DOCUMENTATION
 	document '->trace({options})->' method
 
 	document: quantize extensibility through hash-subs
+
+    document: $FUTURE $PAST $FOREVER $NEVER
+
+
+    POD TODO
+
+    - more SYNOPSIS
+
+    - more COOKBOOK
+
+    - more INHERITED METHODS
+
+    - as_years, next_year: explain this and give more examples, cookbook-style.
+
+    - more 'OLD-API'
+
+    - include the functions to check/set 'open-begin' and 'open-end' intervals
+
+    - include internal methods
 
 CACHEING
 
@@ -90,6 +119,3 @@ OTHER
 	old: Make a global mode for `open_*' 
 
 	old: Quantize_Date should care of daylight savings time
-
-
-

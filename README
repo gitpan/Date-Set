@@ -5,8 +5,8 @@ SYNOPSIS
         use Date::Set;
 
         $a = Date::Set->event( at => '20020311' );      # 20020311
-        $a->event( at => [ '20020312', '20020313' ] );  # 20020311,20020312,20020313
-        $a->exclude( at => '20020312' );                # 20020311,20020313
+        $a->event( at => [ '20020312', '20020313' ] );  # 20020311,[20020312..20020313]
+        $a->exclude( at => '20020312' );                # 20020311,(20020312..20020313]
 
 DESCRIPTION
     Date::Set is a module for date/time sets. It allows you to generate
@@ -200,12 +200,17 @@ SUBROUTINE METHODS
         Optimization tip: rules that have start/end dates might execute
         faster.
 
+        A rule might have a DTSTART:
+
+            $a->event( rule => 'DTSTART=19990101Z;FREQ=YEARLY;INTERVAL=2;COUNT=10;BYMONTH=1,2,3' );
+
+            $a->event( dtstart => '19990101Z', rule => 'FREQ=YEARLY;INTERVAL=2;COUNT=10;BYMONTH=1,2,3' );
+
     at  adds more dates or periods to the set
 
             $a->event( at => '19971024T120000Z' );      # one event
 
-            $a->event( at => [ '19971024T120000Z', 
-                               '19971025T120000Z' ] );  # two dates (not a period)
+            $a->event( at => [ '19971024T120000Z', '19971025T120000Z' ] );  # a period
 
             $a->event( at => $set );                    # one Date::Set
 
@@ -309,9 +314,7 @@ SUBROUTINE METHODS
 
             $a->exclude( at => $set );
 
-            $a->during( at => [ '19971024T120000Z', '19971025T120000Z' ] );  # two dates
-
-            $a->during( at => [ [ '19971024T120000Z', '19971025T120000Z' ] ] );  # a period
+            $a->during( at => [ '19971024T120000Z', '19971025T120000Z' ] );  # a period
 
             $a->during( at => [ $set1, $set2 ] );
 
@@ -327,7 +330,7 @@ SUBROUTINE METHODS
             $a->during( rule => $rule1 );
 
         'exclude rule' deletes from the set all the dates defined by the
-        rule. The RFC 2445 states that the start date will not be excluded
+        rule. The RFC 2445 states that the DTSTART date will not be excluded
         by a rule, so it isn't.
 
         'during rule' limits the set to the dates defined by the rule. If
@@ -380,7 +383,8 @@ SUBROUTINE METHODS
 
 FUNCTION METHODS
     These methods perform operations and return the changed data. They
-    return a new object. The original object is never modified.
+    return a new object. The original object is never modified. There are no
+    side-effects.
 
   fevent, fexclude, fduring HASH
 
@@ -417,14 +421,18 @@ FUNCTION METHODS
 
   dtstart
 
-    Deprecated. Replaced by 'event/during'.
+    Sets DTSTART time.
 
         dtstart( start => time1 )
 
     Returns set intersection [time1 .. Inf)
 
+    time1 is added to the set.
+
     'dtstart' puts a limit on when the event starts. If the event already
     starts AFTER dtstart, it will not change.
+
+    This is a function. It doesn't change the object.
 
   dtend
 
@@ -450,105 +458,21 @@ FUNCTION METHODS
 
     Deprecated. Replaced by 'event'.
 
-        recur_by_rule ( period => date-set,  DTSTART => time,
-            BYMONTH => [ list ],     BYWEEKNO => [ list ],
-            BYYEARDAY => [ list ],   BYMONTHDAY => [ list ],
-            BYDAY => [ list ],       BYHOUR => [ list ],
-            BYMINUTE => [ list ],    BYSECOND => [ list ],
-            BYSETPOS => [ list ],
-            UNTIL => time, FREQ => freq, INTERVAL => n, COUNT => n,
-            WKST => day,
-            RRULE => rrule-string,
-            include_dtstart => 1,
-            exclude_dtstart => 0 )
-
-    All parameters may be upper or lower case.
-
-    Implements RRULE from RFC2445.
-
-    FREQ can be: SECONDLY MINUTELY HOURLY DAILY WEEKLY MONTHLY or YEARLY
-
-    WKST and BYDAY list may contain: SU MO TU WE TH FR SA. By default, weeks
-    start on monday (MO)
-
-    BYxxx items must be array references (must be bracketed) if the list has
-    more than one item:
-
-      BYMOHTH => 10                 or
-      BYMONTH => [ 10 ]             or
-      BYMONTH => [ 10, 11, 12 ]     or 
-      BYMONTH => [ qw(10 11 12) ]
-
-    but NOT:
-
-      BYMONTH => 10, 11, 12       #  NOT!
-
-    DTSTART value can be given explicitly, otherwise it will be taken from
-    'period' or from the set.
-
-    NOTE: "DTSTART" is *ALWAYS* included in the recurrence set, whether or
-    not it matches the rule. Use "include_dtstart => 0" to override this.
-    Use "exclude_dtstart => 1" to *NEVER* include "DTSTART" value in the
-    set.
-
-    NOTE: Some recurrences may give very big or even infinity sized sets.
-    The current implementation does not detect some of these cases and they
-    might crash your system.
-
-    NOTE: The RFC specifies that FREQ is *not* optional.
-
-    There are two operating modes: without 'period' it will filter out the
-    rule from the set; with 'period' it will filter out the rule from the
-    period, then add the list to the set.
-
-    The datatype for 'period' is Date-Set.
-
   exclude_by_rule
 
     Deprecated. Replaced by 'exclude'.
-
-        exclude_by_rule ( period => date-set, DTSTART => time,
-            BYMONTH => [ list ],     BYWEEKNO => [ list ],
-            BYYEARDAY => [ list ],   BYMONTHDAY => [ list ],
-            BYDAY => [ list ],       BYHOUR => [ list ],
-            BYMINUTE => [ list ],    BYSECOND => [ list ],
-            BYSETPOS => [ list ],
-            UNTIL => time, FREQ => freq, INTERVAL => n, COUNT => n,
-            WKST => day )
-
-    Implements EXRULE (exclusion-rule) from RFC2445.
-
-    'period' is optional.
 
   recur_by_date
 
     Deprecated. Replaced by 'event'.
 
-        recur_by_date( list => [time1, time2, ...] )
-
-    Adds the (scalar) list to the set, or creates a new list.
-
-    This Date::Set will recur on each item of the list provided. This method
-    lets you add items to a set of dates. If you call it multiple times,
-    entries from previous calls will be preserved. If you need to delete
-    them again, use exclude_by_date.
-
   exclude_by_date
 
     Deprecated. Replaced by 'exclude'.
 
-        exclude_by_date( list => [time1, time2, ...] )
-
-    Removes each element of the list from the set.
-
   occurrences
 
     Deprecated. Replaced by 'during'.
-
-        occurrences( period => date-set )
-
-    Returns the occurrences for a given period. In other words, "when does
-    this event occur during the given period?"
 
   next_year, next_month, next_week, next_day, next_hour, next_minute, next_weekyear ($date_set)
 
@@ -745,54 +669,6 @@ API INSTABILITIES
     These might change, but they are not likely:
 
         - Accepting string dates MAY be deleted in future versions. 
-
-  POD TODO
-
-        - more SYNOPSIS
-
-        - more COOKBOOK
-
-        - more INHERITED METHODS
-
-        - as_years, next_year: explain this and give more examples, cookbook-style.
-
-        - more 'OLD-API'
-
-        - include the functions to check/set 'open-begin' and 'open-end' intervals
-
-        - include internal methods
-
-  POD CHANGES
-
-        20020311 
-
-        - added POD-TODO and POD-CHANGES
-        - more 'DESCRIPTION'
-        - added 'start' option to 'rule'
-        - added 'is_too_complex'
-        - changes in API-INSTABILITIES
-        - Move INHERITED-FUNCTIONS one level up
-        - added 'undefined-behaviour' sub-section
-        - warn about encapsulation 
-
-        20020312
-
-        - merged options 'at' and 'date_set'
-        - added timeline diagrams
-        - more on 'wkst', min, max, list
-        - explain open-begin and open-end sets
-
-        20020313
-
-        - more timelines
-        - include 'size'
-        - more info about boundaries in exclude/during, in COOKBOOK
-        - info about calling functions without parameters
-        - moved methods not yet implemented to TODO file
-
-        20020318
-
-        - 'is_too_complex' and 'copy' moved to Set::Infinite
 
 AUTHOR
     Flavio Soibelmann Glock <fglock@pucrs.br> with the Reefknot team.

@@ -1,5 +1,25 @@
 Revision history for Perl extension Date::Set.
 
+1.23_03
+    DTSTART is not taken from the period, it must be given by a
+        dtstart parameter or by 'DTSTART=xx' inside a rule.
+    AT syntax was changed to make it compatible with what new() expects:
+        at => [ '19971024T120000Z', '19971025T120000Z' ] );   # a period (was two events)
+    but this didn't change:
+        at => [ ['19971024T120000Z'], ['19971025T120000Z'] ] );  # two events
+        at => [ ['19971024T120000Z', '19971025T120000Z'] ] );    # a period 
+    Some tests changed due to new semantics
+    More tests
+    Removed .pl extension from make_readme and make_htmldoc because they
+        were being "installed" to site/lib/Date
+    No changes were necessary in t/rfc2445.t
+    Requires Set-Infinite-0.36_07 because new() inheritance has changed
+        due to adding dtstart as an object variable
+    dtstart() un-deprecated. Is constructor. Adds DTSTART to the set.
+    move "print() deprecated" out of the pod.
+    move recur_by_rule documentation out of the pod.
+    changed SYNOPSIS
+
 1.23
     more docs
     make_readme.pl updates README
@@ -51,3 +71,35 @@ pre-1.0
 	requires Date::ICal
 	'our' changed to 'use vars'
 
+
+POD CHANGES
+
+    20020311 
+
+    - added POD-TODO and POD-CHANGES
+    - more 'DESCRIPTION'
+    - added 'start' option to 'rule'
+    - added 'is_too_complex'
+    - changes in API-INSTABILITIES
+    - Move INHERITED-FUNCTIONS one level up
+    - added 'undefined-behaviour' sub-section
+    - warn about encapsulation 
+
+    20020312
+
+    - merged options 'at' and 'date_set'
+    - added timeline diagrams
+    - more on 'wkst', min, max, list
+    - explain open-begin and open-end sets
+
+    20020313
+
+    - more timelines
+    - include 'size'
+    - more info about boundaries in exclude/during, in COOKBOOK
+    - info about calling functions without parameters
+    - moved methods not yet implemented to TODO file
+
+    20020318
+
+    - 'is_too_complex' and 'copy' moved to Set::Infinite

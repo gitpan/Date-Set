@@ -21,7 +21,7 @@ use Carp;
 @ISA       = qw(Set::Infinite);
 @EXPORT    = qw();
 @EXPORT_OK = qw(type);
-$VERSION = (qw'$Revision: 1.23 $')[1];
+$VERSION = (qw'$Revision: 1.23_04 $')[1];
 
 
 #----- initialize package globals
@@ -53,6 +53,20 @@ $NEVER   = __PACKAGE__->new();
 
 #----- end: initialize package globals
 
+#----- our special version of new()
+# propagates dtstart 
+
+sub new {
+    my $class = shift;
+    my $self = Set::Infinite->new(@_);
+    bless $self, __PACKAGE__;
+    # print " new ";
+    $self->{dtstart} = ref($class) ? $class->{dtstart} : undef;
+    return $self;
+}
+
+#----- POD intro
+
 =head1 NAME
 
 Date::Set - Date set math
@@ -62,8 +76,8 @@ Date::Set - Date set math
     use Date::Set;
 
     $a = Date::Set->event( at => '20020311' );      # 20020311
-    $a->event( at => [ '20020312', '20020313' ] );  # 20020311,20020312,20020313
-    $a->exclude( at => '20020312' );                # 20020311,20020313
+    $a->event( at => [ '20020312', '20020313' ] );  # 20020311,[20020312..20020313]
+    $a->exclude( at => '20020312' );                # 20020311,(20020312..20020313]
 
 =head1 DESCRIPTION
 
@@ -221,6 +235,9 @@ If you remove '20010101' and '20020501' from the interval, you get an open inter
 
 =cut
 
+#----- end POD intro
+
+
 
 =head1 "NEW" API
 
@@ -277,14 +294,19 @@ This is a simple list of dates. These dates are not 'periods', they have no dura
 
 Optimization tip: rules that have start/end dates might execute faster. 
 
+A rule might have a DTSTART: 
+
+    $a->event( rule => 'DTSTART=19990101Z;FREQ=YEARLY;INTERVAL=2;COUNT=10;BYMONTH=1,2,3' );
+
+    $a->event( dtstart => '19990101Z', rule => 'FREQ=YEARLY;INTERVAL=2;COUNT=10;BYMONTH=1,2,3' );
+
 =item at
 
 adds more dates or periods to the set
 
     $a->event( at => '19971024T120000Z' );      # one event
 
-    $a->event( at => [ '19971024T120000Z', 
-                       '19971025T120000Z' ] );  # two dates (not a period)
+    $a->event( at => [ '19971024T120000Z', '19971025T120000Z' ] );  # a period
 
     $a->event( at => $set );                    # one Date::Set
 
@@ -354,8 +376,8 @@ you can mix 'at' and 'start'/'end' boundary effects to 'rule':
 sub event {
     my $self = shift;
     my $set = $self->fevent(@_);
-    my $class = ref($self) || $self;
-    if (ref($self) eq $class) {
+    # my $class = ref($self) || $self;
+    if (ref($self)) {
         # copy result to self (can't use "copy" method here)
         %$self = ();
         foreach my $key (keys %{$set}) {
@@ -417,9 +439,7 @@ You can use 'exclude' and 'during' to put boundaries on an infinitely recurring 
 
     $a->exclude( at => $set );
 
-    $a->during( at => [ '19971024T120000Z', '19971025T120000Z' ] );  # two dates
-
-    $a->during( at => [ [ '19971024T120000Z', '19971025T120000Z' ] ] );  # a period
+    $a->during( at => [ '19971024T120000Z', '19971025T120000Z' ] );  # a period
 
     $a->during( at => [ $set1, $set2 ] );
 
@@ -436,7 +456,7 @@ a recurrence rule as defined in RFC2445
     $a->during( rule => $rule1 );
 
 'exclude rule' deletes from the set all the dates defined by the rule.
-The RFC 2445 states that the start date will not be excluded by a rule, so it isn't. 
+The RFC 2445 states that the DTSTART date will not be excluded by a rule, so it isn't. 
 
 'during rule' limits the set to the dates defined by the rule. If the set does not
 contain any of the dates, it gets empty
@@ -473,12 +493,12 @@ If there are no dates in that period, the set gets empty.
 
 sub during {
     my $self = shift;
-    my $class = ref($self) || $self;
+    # my $class = ref($self) || $self;
 
     my $set = $self->fduring(@_);
     # carp " self $self ; set $set ";
 
-    if (ref($self) eq $class) {
+    if (ref($self)) {
         # carp " return self+set ";
         # copy result to self (can't use "copy" method here)
         %$self = ();
@@ -491,12 +511,12 @@ sub during {
 
 sub exclude {
     my $self = shift;
-    my $class = ref($self) || $self;
+    # my $class = ref($self) || $self;
 
     my $set = $self->fexclude(@_);
     # carp " self $self ; set $set ";
 
-    if (ref($self) eq $class) {
+    if (ref($self)) {
         # carp " return self+set ";
         # copy result to self (can't use "copy" method here)
         %$self = ();
@@ -529,6 +549,8 @@ Return value is current wkst value.
 
 =cut
 
+# TODO: wkst is global - make it work locally too, if applied to an object
+
 sub wkst {
     my $value = pop;
     $WKST = uc($value) if (defined $value) and ($value =~ /^\w\w$/);
@@ -539,6 +561,7 @@ sub wkst {
 
 These methods perform operations and return the changed data. 
 They return a new object. The original object is never modified.
+There are no side-effects.
 
 =head2 fevent, fexclude, fduring HASH
 
@@ -565,14 +588,17 @@ sub fevent {
     my $self = shift;
     my %parm = @_;
     my $set;
-    my $class = ref($self) || $self;
+    # $self = $self->new() unless ref($self);
+    # my $class = ref($self) || $self;
     # carp " class: $class [ $parm{start} .. $parm{end} ]";
+
+    # carp " fevent " . join(".", %parm);
 
     # some optimization to find out what to do 
     my $has  = 0;
     $has |= 1 if exists $parm{start};
     $has |= 2 if exists $parm{end};
-    $has |= 4 if exists $parm{at};
+    $has |= 4 if exists $parm{at};     
     $has |= 8 if exists $parm{rule};
 
     # carp " has $has ";
@@ -581,102 +607,139 @@ sub fevent {
     %parm  = (
         start   => $PAST,
         end     => $FUTURE,
-        at      => [],
+        at      => undef,
         rule    => '',
+        dtstart => undef,
         exclude_dtstart => 0,   # DTSTART is included in RRULE, but not in EXRULE
         %parm
     );
 
+    # carp " fevent " . join(".", %parm);
+
     # check for deprecated parameters
     if ( exists $parm{'default'} ) {
-        carp $class . "-> event-default deprecated";
+        carp $self . "-> event-default deprecated";
     }
+
+    # carp "fevent $has";
 
     if ($has == 1) {
         # start
-        $set = $class->new($parm{start}, inf );
+        return $self->new($parm{start}, inf) unless ref($self);
+        $set = $self->intersection($parm{start}, inf );
     }
     elsif ($has == 2) {
         # end
-        $set = $class->new(-&inf(), $parm{end} );
+        return $self->new(-&inf(), $parm{end}) unless ref($self);
+        $set = $self->intersection(-&inf(), $parm{end} );
     }
     elsif ($has == 3) {
         # start + end
-        $set = $class->new($parm{start}, $parm{end} );
+        return $self->new($parm{start}, $parm{end}) unless ref($self);
+        $set = $self->intersection($parm{start}, $parm{end} );
+    }
+    elsif ($has == 4) {
+        # at
+        # carp " $self at $parm{at}"; 
+        return $self->new($parm{at}) unless ref($self);
+        $set = $self->union($parm{at});
+        # carp " set $set";
     }
     elsif ($has == 8) {
         # rule
-        $set = $class->recur_by_rule(
+        $self = $self->new(-&inf(), inf) unless ref($self);
+        $set = $self->recur_by_rule(
             rrule => $parm{rule}, 
+            dtstart => $parm{dtstart}, 
             exclude_dtstart => $parm{exclude_dtstart} );
     }
     elsif ($has == 9) {
         # rule + start
-        $set = $class->recur_by_rule(
+        $self = $self->new($parm{start}, inf) unless ref($self);
+        $set = $self->recur_by_rule(
             rrule => $parm{rule}, 
-            dtstart => $parm{start},
+            dtstart => $parm{dtstart},     
             exclude_dtstart => $parm{exclude_dtstart} );
     }
     elsif ($has == 10) {
         # rule + end
-        $set = $class->new(-&inf(), $parm{end} )
+        $self = $self->new(-&inf(), $parm{end}) unless ref($self);
+        $set = $self->intersection(-&inf(), $parm{end} )
             ->recur_by_rule(
                 rrule => $parm{rule}, 
+                dtstart => $parm{dtstart}, 
                 exclude_dtstart => $parm{exclude_dtstart} );
     }
     else {
         # combined parameters
-
+        $self = $self->new() unless ref($self);
         # carp " self $self ";
 
-        my $dtstart = $parm{start};
-        my $dtend   = $parm{end};
-        $set = $class->new( $dtstart, $dtend );
-        # carp " $set -- [ $dtstart .. $dtend ]";
+        my $start = $parm{start};
+        my $end   = $parm{end};
+        my $rule_start_end = $self->new( $start, $end );
+        # carp " rule_start_end $rule_start_end";
 
-        if (ref($parm{at}) ne 'ARRAY') {
-            $set = $set->intersection($parm{at});
+        my $rule_at;
+        # $parm{at} = [ $parm{at} ] if ref($parm{at}) ne 'ARRAY';
+        if ( $parm{at} ) {
+            # carp " AT $parm{at}";
+            $rule_at = $self->new($parm{at});
         }
-        elsif ($#{$parm{at}} >= 0) {
-            my $at = $class->new();
-            foreach (@{$parm{at}}) {
-                $at = $at->union($_); 
-            }
-            $set = $set->intersection($at);
+        else {
+            # carp " NO AT ";
+            $rule_at = $self->new(-&inf, inf);
         }
+        # carp " rule_at $rule_at";
+
+        # if (ref($parm{at}) ne 'ARRAY') {
+        #    $rule_at = $self->new($parm{at});
+        # }
+        # elsif ($#{$parm{at}} >= 0) {
+        #    my $at = $self->new();
+        #    foreach (@{$parm{at}}) {
+        #        $at = $at->union($_); 
+        #    }
+        #    $set = $set->intersection($at);
+        # }
+
+        $set = $rule_at->union($self)->intersection($rule_start_end);
+
+        # carp " start+end+at = $set";
 
         if ($parm{rule}) {
-            my $max = $set->max;
-            $dtend = $max if $max < $dtend;
-            $dtstart = $set->min if $parm{start} == $PAST;
+            # my $max = $set->max;
+            # $dtend = $max if $max < $dtend;
+            # $dtstart = $set->min if $parm{start} == $PAST;
 
-            my $period = $class->new( $dtstart, $dtend );
+            # my $period = $self->new( $dtstart, $dtend );
             # carp "\n period: $period " . ref($period) . " ";
-            # carp "\n rule: $parm{rule} ";
-            my $rule = $class->recur_by_rule(
+            # carp " rule: $parm{rule} ";
+            my $rule = $set->recur_by_rule(
                 rrule => $parm{rule}, 
-                period => $period,
+                dtstart => $parm{dtstart}, 
+                # period => $period,
                 exclude_dtstart => $parm{exclude_dtstart} );
             $set = $set->intersection($rule);
         }
     }
 
-    # carp " self $self ; set $set ";
+    # carp " result self $self ; set $set ";
 
-    if (ref($self) eq $class) {
-        # carp " return self+set ";
-        $set = $self->union($set);
-    }
+    # if (ref($self) ) {
+    #    # carp " return self+set $self + $set";
+    #    # $set = $self->union($set);
+    # }
     return $set;
 }
 
 
 sub fduring {
     my $self = shift;
-    my $class = ref($self) || $self;
-    my $set = $class->fevent(@_);
-    if (ref($self) eq $class) {
-        # carp " during: intersection ";
+    # my $class = ref($self) || $self;
+    my $set = __PACKAGE__->fevent(dtstart => $self->{dtstart}, @_);  # $self->new()-> ??
+    if (ref($self) ) {
+        # carp " during: intersection $self + $set";
         $set = $self->intersection($set);
     }
     # carp " during: $set ";
@@ -685,9 +748,10 @@ sub fduring {
 
 sub fexclude {
     my $self = shift;
-    my $class = ref($self) || $self;
-    my $set = $class->fevent( exclude_dtstart => 1, @_);
-    if (ref($self) eq $class) {
+    # my $class = ref($self) || $self;
+    # carp " fexclude " . join('.', @_);
+    my $set = __PACKAGE__->fevent( exclude_dtstart => 1, dtstart => $self->{dtstart}, @_);  # $self->new()-> ??
+    if (ref($self)) {
         # carp " exclude: $set ";
         $set = $self->intersection($set) if $set->is_too_complex;
         # carp " exclude intersection: $set ";
@@ -709,11 +773,12 @@ sub fexclude {
 #
 # It works only if $DEBUG is set. 
 #
-=head2 print
 
-Deprecated. 
-
-=cut
+# =head2 print
+#
+# Deprecated. 
+#
+# =cut
 
 sub _print {
     my ( $self, %parm ) = @_;
@@ -759,21 +824,35 @@ sub period {    # time[]
 
 =head2 dtstart
 
-Deprecated. Replaced by 'event/during'. 
+Sets DTSTART time. 
 
     dtstart( start => time1 )
 
 Returns set intersection [time1 .. Inf)
 
+time1 is added to the set.
+
 'dtstart' puts a limit on when the event starts. 
-If the event already starts AFTER dtstart, it will not change.
+If the event already starts AFTER dtstart, it will not change. 
+
+This is a function. It doesn't change the object.
 
 =cut
 
 sub dtstart {    # start
     my ( $self, %parm ) = @_;
+    unless (ref($self)) {
+        # constructor
+        $self = $self->new( $parm{start}, $FUTURE );
+        $self->{dtstart} = $parm{start};
+        return $self;
+    }
     $self->_print( title => 'dtstart ' . join ( ':', %parm ) ) if $DEBUG;
-    return $self->intersection( $parm{start}, $FUTURE );
+    my $dt = $self->copy;
+    $dt->{dtstart} = $parm{start};
+    # print " dtstart $self->{dtstart}\n";
+    # print " dtstart-i ", $self->intersection( $parm{start}, $FUTURE )->{dtstart},"\n";
+    return $dt->intersection( $parm{start}, $FUTURE )->union( $parm{start} );
 
     # my $tmp = __PACKAGE__->new($parm{start}, $FUTURE);
     # return $self->intersection($tmp);
@@ -835,6 +914,10 @@ sub duration {    # unit,duration
 
 Deprecated. Replaced by 'event'. 
 
+=cut
+
+<<__internal_docs__;
+
     recur_by_rule ( period => date-set,  DTSTART => time,
         BYMONTH => [ list ],     BYWEEKNO => [ list ],
         BYYEARDAY => [ list ],   BYMONTHDAY => [ list ],
@@ -867,7 +950,10 @@ but NOT:
 
   BYMONTH => 10, 11, 12       #  NOT!
 
-DTSTART value can be given explicitly, otherwise it will be taken from 'period' or from the set.
+DTSTART must be given explicitly. 
+In older versions of this module DTSTART would be taken 
+from 'period' or from the set.
+
 
 NOTE: "DTSTART" is *ALWAYS* included in the recurrence set,
 whether or not it matches the rule. Use "include_dtstart => 0" to
@@ -886,6 +972,7 @@ with 'period' it will filter out the rule from the period, then add the list to 
 The datatype for 'period' is Date-Set.
 
 =cut
+__internal_docs__
 
 # TODO: the API here is a bit weird. RFC parameters are in all caps. period is in lower case.
 # this confuses me some. how should we make this clearer? --jesse
@@ -916,6 +1003,7 @@ sub _parse_rule {
      }
      return %return;
 }
+
 sub recur_by_rule {
     my $self = shift;
 
@@ -974,7 +1062,20 @@ sub recur_by_rule {
 
         print " NEW: $self \n" if $DEBUG;
     }
-    my $class = ref($self);
+    # my $class = ref($self);
+
+    # set our {dtstart} if defined
+    # print " dtstart is $parm{DTSTART} , was $self->{dtstart} \n";
+    # later! ---> $self->{dtstart} = $parm{DTSTART}   if defined $parm{DTSTART};
+    # ... and vice-versa
+
+    $parm{DTSTART}   = $self->{dtstart} if defined $self->{dtstart};
+    $parm{DTSTART}   = $parm{PERIOD}->{dtstart} if ref($parm{PERIOD}) and defined $parm{PERIOD}->{dtstart} and not defined $parm{DTSTART};
+    $parm{DTSTART_save} = $parm{DTSTART};   
+
+    # print " dtstart is $parm{DTSTART} , was $self->{dtstart} \n";
+
+    # $DEBUG = 1;
 
     # Try to find out what 'period' the rrule is talking about
     if ( defined $parm{PERIOD} ) {
@@ -982,6 +1083,9 @@ sub recur_by_rule {
         print " PERIOD: $parm{PERIOD} \n" if $DEBUG;
         # try to make $self smaller
         $self = $self->intersection( $parm{PERIOD} );
+
+
+        # $self->{dtstart} = $parm{PERIOD}->{dtstart} if ref($parm{PERIOD}) and defined $parm{PERIOD}->{dtstart} and not defined $self->{dtstart};
     }
     else {
         $has{period}  = 0;
@@ -989,15 +1093,30 @@ sub recur_by_rule {
         # try to make a period from DTSTART and $self
         if ( defined $parm{DTSTART} ) {
             # make sure DTSTART is the right type
-            $parm{DTSTART} = $class->new( $parm{DTSTART} )->min;
+            #    this could be more efficient...
+            $parm{DTSTART} = $self->new( $parm{DTSTART} )->min;
             # apply DTSTART, just in case
             $self = $self->intersection( $parm{DTSTART}, $FUTURE );
             print " NEW PERIOD: $self \n" if $DEBUG;
+
+            # if we have "COUNT" we must start at DTSTART
+            if ( defined $parm{DTSTART_save} ) {
+                if ( $parm{DTSTART_save} < $self->min ) {
+                    $self = $self->union( $parm{DTSTART_save}, $self->min );
+                }
+                if ( $parm{DTSTART_save} > $self->min ) {
+                    $self = $self->intersection( $parm{DTSTART_save}, inf );
+                }
+            }
+
         }
         else {
             print " NO DTSTART \n" if $DEBUG;
         }
     }
+
+    # carp " PERIOD $parm{PERIOD} ";
+    # $DEBUG = 0;
 
     # UNTIL and COUNT MUST NOT occur in the same 'recur'  (why?)
     if ( $parm{UNTIL} ) {
@@ -1013,7 +1132,7 @@ sub recur_by_rule {
         or ( $self->min == -&inf )
         or ( $self->max == &inf ) )
     {
-        my $b = $class->new();
+        my $b = $self->new();
         $self->trace( title => "rrule:backtrack" );
         print " BACKTRACKING \n" if $DEBUG;
 
@@ -1030,13 +1149,14 @@ sub recur_by_rule {
 
     my $when = $parm{PERIOD};
 
+    # NOTE: is this redundant? maybe already had it checked above...
     # DTSTART gives the default values for month, day, h, m, s
     unless ( defined $parm{DTSTART} ) {
         $parm{DTSTART} = $parm{PERIOD}->min;
     }
     else {
         # make sure DTSTART is the right type
-        $parm{DTSTART} = $class->new( $parm{DTSTART} )->min;
+        $parm{DTSTART} = $self->new( $parm{DTSTART} )->min;
 
         # apply DTSTART, just in case
         $when = $when->intersection( $parm{DTSTART}, $FUTURE );
@@ -1168,8 +1288,10 @@ sub recur_by_rule {
 
     # ALWAYS include DTSTART in the result
     # unless we are told not to do so
-    $rrule = $rrule->union( $parm{DTSTART} ) if $parm{INCLUDE_DTSTART};
-    $rrule = $rrule->complement( $parm{DTSTART} ) if $parm{EXCLUDE_DTSTART};
+    if (defined $parm{DTSTART_save} ) {
+        $rrule = $rrule->union( $parm{DTSTART_save} ) if $parm{INCLUDE_DTSTART};
+        $rrule = $rrule->complement( $parm{DTSTART_save} ) if $parm{EXCLUDE_DTSTART};
+    }
 
     if ( $has{period} ) {
         return $self->union($rrule)->fixtype;
@@ -1187,9 +1309,13 @@ sub recur_by_rule {
 sub _apply_DTSTART {
     my $when =   $_[0];
     my %parm = %{$_[1]};
+
     print " [EVALUATING RRULE PARM ",join(':',%parm)," ]\n" if $DEBUG;
     my %has =  %{$_[2]};
     print " [EVALUATING RRULE HAS  ",join(':',%has)," ]\n" if $DEBUG;
+
+    return $when unless defined $parm{DTSTART_save};
+
     my $wkst = $WEEKDAY{ $parm{WKST} };
     my $tmp;
 
@@ -1429,6 +1555,10 @@ sub _rrule_by {
 
 Deprecated. Replaced by 'exclude'. 
 
+=cut
+
+<<__internal_docs__;
+
     exclude_by_rule ( period => date-set, DTSTART => time,
         BYMONTH => [ list ],     BYWEEKNO => [ list ],
         BYYEARDAY => [ list ],   BYMONTHDAY => [ list ],
@@ -1443,6 +1573,8 @@ Implements EXRULE (exclusion-rule) from RFC2445.
 'period' is optional.
 
 =cut
+__internal_docs__
+
 
 sub exrule {
     my $self = shift;
@@ -1496,6 +1628,9 @@ sub exclude_by_rule {
 
 Deprecated. Replaced by 'event'. 
 
+=cut
+<<__internal_docs__;
+
     recur_by_date( list => [time1, time2, ...] )
 
 Adds the (scalar) list to the set, or creates a new list.
@@ -1506,6 +1641,8 @@ call it multiple times, entries from previous calls will
 be preserved. If you need to delete them again, use exclude_by_date.
 
 =cut
+__internal_docs__
+
 
 sub rdate {
     my $self = shift;
@@ -1541,11 +1678,16 @@ sub recur_by_date {
 
 Deprecated. Replaced by 'exclude'. 
 
+=cut
+<<__internal_docs__;
+
     exclude_by_date( list => [time1, time2, ...] )
 
 Removes each element of the list from the set.
 
 =cut
+__internal_docs__
+
 
 sub exdate {
     my $self = shift;
@@ -1579,12 +1721,17 @@ sub exclude_by_date {
 
 Deprecated. Replaced by 'during'. 
 
+=cut
+<<__internal_docs__;
+
     occurrences( period => date-set )
 
 Returns the occurrences for a given period. In other words,
 "when does this event occur during the given period?"
 
 =cut
+__internal_docs__
+
 
 sub occurrences {    # event->, period
     my $self = shift;
@@ -1868,54 +2015,6 @@ Some behaviour is yet undefined:
 These might change, but they are not likely:
 
     - Accepting string dates MAY be deleted in future versions. 
-
-=head2 POD TODO
-
-    - more SYNOPSIS
-
-    - more COOKBOOK
-
-    - more INHERITED METHODS
-
-    - as_years, next_year: explain this and give more examples, cookbook-style.
-
-    - more 'OLD-API'
-
-    - include the functions to check/set 'open-begin' and 'open-end' intervals
-
-    - include internal methods
-
-=head2 POD CHANGES
-
-    20020311 
-
-    - added POD-TODO and POD-CHANGES
-    - more 'DESCRIPTION'
-    - added 'start' option to 'rule'
-    - added 'is_too_complex'
-    - changes in API-INSTABILITIES
-    - Move INHERITED-FUNCTIONS one level up
-    - added 'undefined-behaviour' sub-section
-    - warn about encapsulation 
-
-    20020312
-
-    - merged options 'at' and 'date_set'
-    - added timeline diagrams
-    - more on 'wkst', min, max, list
-    - explain open-begin and open-end sets
-
-    20020313
-
-    - more timelines
-    - include 'size'
-    - more info about boundaries in exclude/during, in COOKBOOK
-    - info about calling functions without parameters
-    - moved methods not yet implemented to TODO file
-
-    20020318
-
-    - 'is_too_complex' and 'copy' moved to Set::Infinite
 
 =cut
 

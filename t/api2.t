@@ -26,12 +26,19 @@ $title = "event-at constructor";
         at    => '19970902T090000Z' );
     is("$a",     '19970902T090000Z', $title);
 
-$title = "event-at constructor, array";
+
+
+$title = "event-at constructor, array, meaning interval";
     $a = Date::Set->event( 
         at    => [ '19970902T090000Z','19970903T090000Z' ] );
+    is("$a",       '[19970902T090000Z..19970903T090000Z]', $title);
+
+$title = "event-at constructor, array, meaning events";
+    $a = Date::Set->event( 
+        at    => [ ['19970902T090000Z'],['19970903T090000Z'] ] );
     is("$a",       '19970902T090000Z,19970903T090000Z', $title);
 
-$title = "event-at union";
+$title = "event at";
     $a->event( 
         at    => [ '19950101Z' ] );
     is("$a",       '19950101Z,19970902T090000Z,19970903T090000Z', $title);
@@ -43,6 +50,8 @@ $title = "event-start constructor";
         start    => '19950101Z' );
     is("$a",       '[19950101Z..inf)', $title);
 
+
+
 $title = "event-end constructor";
     $a = Date::Set->event( 
         end    => '19950101Z' );
@@ -53,6 +62,7 @@ $title = "event-start-end constructor";
         start    => '19950101Z', 
         end      => '19970902T090000Z' );
     is("$a",       '[19950101Z..19970902T090000Z]', $title);
+
 
 
 # NOTE: this test fails if used with Set::Infinite < 0.36
@@ -72,41 +82,46 @@ $title = "event-rule constructor, gets bounded";
 $title = "event-start union";
     $a = Date::Set->event( start => '19950101Z', end => '19990101Z' );
     $a->event( 
-        start    => '20010101Z' );
-    is("$a",       '[19950101Z..19990101Z],[20010101Z..inf)', $title);
+        start    => '19960101Z' );
+    is("$a",       '[19960101Z..19990101Z]', $title);
 
 $title = "event-end union";
     $a = Date::Set->event( start => '19950101Z', end => '19990101Z' );
     $a->event( 
-        end    => '19910101Z' );  
-    is("$a",       '(-inf..19910101Z],[19950101Z..19990101Z]', $title);
+        end    => '19980101Z' );  
+    is("$a",       '[19950101Z..19980101Z]', $title);
+
+
 
 $title = "event-start-end union";
     $a = Date::Set->event( start => '19950101Z', end => '19990101Z' );
     $a->event( 
-        start    => '20010101Z', 
-        end      => '20020902T090000Z' );
-    is("$a",       '[19950101Z..19990101Z],[20010101Z..20020902T090000Z]', $title);
+        start    => '19960101Z', 
+        end      => '19980902T090000Z' );
+    is("$a",       '[19960101Z..19980902T090000Z]', $title);
     is( $a->is_too_complex, '0', 'is_too_complex 0');
+
 
 # $Set::Infinite::DEBUG_BT = 1;
 # $Date::Set::DEBUG = 1;
-$title = "event-rule union, unbounded";
+$title = "event-rule union";
     $a = Date::Set->event( start => '19950101Z', end => '19990101Z' );
     $a->event( 
         rule    => 'FREQ=YEARLY;COUNT=10' );
-    is("$a",       'Too complex', $title);
-    is( $a->is_too_complex, '1', 'is_too_complex 1');
+    is("$a",       '19950101Z,19960101Z,19970101Z,19980101Z,19990101Z', $title);
+    # is( $a->is_too_complex, '1', 'is_too_complex 1');
 
 # $Set::Infinite::DEBUG_BT = 1;
 # $Date::Set::DEBUG = 1;
 $title = "event-rule union, gets bounded";
     $b = Date::Set->event( start => '19930101Z', end => '20020101Z' );
     $b = $b->intersection($a);
-    is("$b",       '19930101Z,19940101Z,[19950101Z..19990101Z],20000101Z,20010101Z,20020101Z',
+    is("$b",       '19950101Z,19960101Z,19970101Z,19980101Z,19990101Z',
                    $title);
 $Set::Infinite::DEBUG_BT = 0;
 $Date::Set::DEBUG = 0;
+
+
 
 $title = "event-rule start, bounded by UNTIL";
     $a = Date::Set->event( 
@@ -119,35 +134,49 @@ $title = "event-rule start, bounded by UNTIL";
 $title = "event start + end + at; at with interval";
     $b = Date::Set->event( 
         start => '19940101Z', end => '20000201Z', 
-        at => [ '19930101Z','19940101Z',['19950101Z','19990101Z'],'20000101Z','20010101Z' ] );
+        at => [ '19930101Z','19940101Z',['19950101Z','19990101Z'],['20000101Z'],['20010101Z'] ] );
     is("$b",       '19940101Z,[19950101Z..19990101Z],20000101Z',
                    $title);
+
+
 
 $title = "event start + at";
     $b = Date::Set->event( 
         start => '19940101Z',
-        at => [ '19930101Z','19940101Z',['19950101Z','19990101Z'],'20000101Z','20010101Z' ] );
+        at => [ '19930101Z','19940101Z',['19950101Z','19990101Z'],['20000101Z'],['20010101Z'] ] );
     is("$b",       '19940101Z,[19950101Z..19990101Z],20000101Z,20010101Z',
                    $title);
 
 $title = "event end + at";
     $b = Date::Set->event( 
         end => '20000201Z', 
-        at => [ '19930101Z','19940101Z',['19950101Z','19990101Z'],'20000101Z','20010101Z' ] );
+        at => [ ['19930101Z'],['19940101Z'],['19950101Z','19990101Z'],['20000101Z'],['20010101Z'] ] );
     is("$b",       '19930101Z,19940101Z,[19950101Z..19990101Z],20000101Z',
                    $title);
+
 
 
 # rule + start, rule + end, rule + at
 
 # $Set::Infinite::DEBUG_BT = 1;
 # $Date::Set::DEBUG = 1;
-$title = "event rule + start";
+$title = "event rule + start, without dtstart";
     $a = Date::Set->event( 
         start => '19970902T090000Z',
         rule  => 'FREQ=DAILY;COUNT=10' );
     $b = Date::Set->event( end => '19990101Z' );
-    is("$b", '(-inf..19990101Z]', 'end');
+    is("$b", '(-inf..19990101Z]', 'event end');
+    $b = $a->intersection( $b );
+    is("$b", 
+        '19970902T090000Z,19970903Z,19970904Z,19970905Z,' .
+        '19970906Z,19970907Z,19970908Z,19970909Z,' .
+        '19970910Z,19970911Z', $title);
+
+$title = "event rule + dtstart";
+    $a = Date::Set->dtstart( start => '19970902T090000Z')->
+        event( rule  => 'FREQ=DAILY;COUNT=10' );
+    $b = Date::Set->event( end => '19990101Z' );
+    is("$b", '(-inf..19990101Z]', 'event end');
     $b = $a->intersection( $b );
     is("$b", 
         '19970902T090000Z,19970903T090000Z,19970904T090000Z,19970905T090000Z,' .
@@ -161,21 +190,33 @@ $title = "event rule + end";
         end => '19990101Z',
         rule  => 'FREQ=DAILY;COUNT=10' );
     $b = Date::Set->event( start => '19970902T090000Z' );
-    is("$b", '[19970902T090000Z..inf)', 'start');
+    is("$b", '[19970902T090000Z..inf)', 'event start');
     $b = $a->intersection( $b );
     is("$b", 
-        '19970902T090000Z,19970903T090000Z,19970904T090000Z,19970905T090000Z,' .
-        '19970906T090000Z,19970907T090000Z,19970908T090000Z,19970909T090000Z,' .
-        '19970910T090000Z,19970911T090000Z', $title);
+        '19970902T090000Z,19970903Z,19970904Z,19970905Z,' .
+        '19970906Z,19970907Z,19970908Z,19970909Z,' .
+        '19970910Z,19970911Z', $title);
+
+
+$title = "event rule + start + end";
+    $a = Date::Set->event( 
+        start => '19970903Z',
+        end => '19990101Z',
+        rule  => 'FREQ=DAILY;COUNT=10' );
+    is("$a", 
+        '19970903Z,19970904Z,19970905Z,' .
+        '19970906Z,19970907Z,19970908Z,19970909Z,' .
+        '19970910Z,19970911Z,19970912Z', $title);
+
 
 $title = "event rule + at";
     $a = Date::Set->event( 
         at => [['19990101Z','19970902T090000Z']],
         rule  => 'FREQ=DAILY;COUNT=10' );
     is("$a", 
-        '19970902T090000Z,19970903T090000Z,19970904T090000Z,19970905T090000Z,' .
-        '19970906T090000Z,19970907T090000Z,19970908T090000Z,19970909T090000Z,' .
-        '19970910T090000Z,19970911T090000Z', $title);
+        '19970902T090000Z,19970903Z,19970904Z,19970905Z,' .
+        '19970906Z,19970907Z,19970908Z,19970909Z,' .
+        '19970910Z,19970911Z', $title);
 
 
 # event rule + start + at
@@ -190,8 +231,8 @@ $title="event-rule-start-at Daily for 10 occurrences";
     # make a period from 1995 until 1999
     $period = Date::Set->event( start => '19950101Z', end => '19990101Z' );
     $a = Date::Set->event( 
-        start => '19970902T090000Z',
-        rule  => 'FREQ=DAILY;COUNT=10',
+        # start => '19970902T090000Z',
+        rule  => 'DTSTART=19970902T090000Z;FREQ=DAILY;COUNT=10',
         at    => $period );
     is("$a", 
         '19970902T090000Z,19970903T090000Z,19970904T090000Z,19970905T090000Z,' .
@@ -199,11 +240,11 @@ $title="event-rule-start-at Daily for 10 occurrences";
         '19970910T090000Z,19970911T090000Z', $title);
 $Date::Set::DEBUG = 0;
 
-$title="event-rule-start-at Daily for 10 occurrences, dtstart < subset";
+$title="event-rule-start-at Daily for 10 occurrences, start < subset";
     $period = Date::Set->event( start => '19970903T100000Z', end => '19990101Z' );
     $a = Date::Set->event( 
-        start => '19970902T090000Z',
-        rule  => 'FREQ=DAILY;COUNT=10',
+        # start => '19970902T090000Z',
+        rule  => 'DTSTART=19970902T090000Z;FREQ=DAILY;COUNT=10',
         at    => $period );
     is("$a", 
         '19970904T090000Z,19970905T090000Z,' .
@@ -235,13 +276,28 @@ $title = "during rule";
 
 $title = "exclude-at";
     $a->event( at    => [[ '19950101Z', '19990101Z' ]] );
+    # print " event-at => $a \n";
     $a->exclude( at  => [[ '19970101Z', '20000101Z' ]] );
     is("$a",       '[19950101Z..19970101Z)', $title);
 
+
+
 $title = "exclude-rule-at";
-# NOTE: 19950101Z is not excluded because it is the 'DTSTART' value
+# NOTE: 19950101Z is excluded because it is NOT the 'DTSTART' value
+    # print " a = $a\n";
+    my $tmp = $a->copy;
+    $a->exclude( rule  => 'FREQ=YEARLY', at => $a );
+    is("$a",       '(19950101Z..19960101Z),(19960101Z..19970101Z)', $title);
+    
+    # get old value back and set DTSTART
+    $a = $tmp->copy->dtstart(start => '19950101Z');
+    # print " $a starts in ",$a->{dtstart}," \n";
+
+$title = "exclude-rule-at with DTSTART";
+# NOTE: now 19950101Z is NOT excluded because it is the 'DTSTART' value
     $a->exclude( rule  => 'FREQ=YEARLY', at => $a );
     is("$a",       '[19950101Z..19960101Z),(19960101Z..19970101Z)', $title);
+
 
 # exclude rule
 
