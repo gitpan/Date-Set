@@ -16,7 +16,7 @@ use vars qw(@ISA @EXPORT @EXPORT_OK $VERSION $DEBUG
 @ISA = qw(Set::Infinite);
 @EXPORT = qw();
 @EXPORT_OK = qw(type);
-$VERSION = '0.02';
+$VERSION = '0.03';
 
 $DEBUG = 0;
 $Set::Infinite::TRACE = 0;
@@ -90,6 +90,8 @@ sub rrule { # freq, &method(); optional: interval, until, count
 	$parm{INTERVAL} = $parm{INTERVAL} . '';
 	$parm{COUNT} = $parm{COUNT} . '';
 	$parm{UNTIL} = $parm{UNTIL} . '';
+	$parm{WKST} = $parm{WKST} . '';
+	$parm{WKST} = "MO" unless $parm{WKST};
 
 	$when->print(title=>'WHEN');
 
@@ -116,15 +118,12 @@ sub rrule { # freq, &method(); optional: interval, until, count
 	if (exists $parm{BYWEEKNO}) {
 		my $byweekno = $when;
 		my @by = (); foreach ( @{$parm{BYWEEKNO}} ) { push @by, $_-1, $_; }
+		my $wkst = $weekday{$parm{WKST}};
+		# print " PARM:WKST:$wkst = $parm{WKST} \n";
 		$when = $byweekno->intersection(
-			$byweekno->quantize(unit=>'years', strict=>0)
-			#->print (title=>'year')
-			# *** Put WKST here ********** TODO *********
-			->offset(mode=>'begin', value=>[0,0] )
-			->quantize(unit=>'weeks', strict=>0)
-			->print (title=>'week')
-			->offset(unit=>'weeks', mode=>'circle', value=>[@by], strict=>0 ) 
-			->print (title=>'week-by ' . join(',' , @by) )
+			$byweekno->quantize(unit=>'weekyears', wkst=>$wkst, strict=>0)
+			->offset(mode=>'circle', unit=>'weeks', value=>[@by], strict=>0 )
+			->print (title=>'weeks2 ' . join(',' , @by) )
 		)->no_cleanup; 
 		$when->print(title=>'BYWEEKNO');
 	}
@@ -302,13 +301,14 @@ All intervals are modified to 'duration'.
         BYDAY => [ list ],       BYHOUR => [ list ],
         BYMINUTE => [ list ],    BYSECOND => [ list ],
         BYSETPOS => [ list ],
-        UNTIL => time, FREQ => freq, INTERVAL => n, COUNT => n )
+        UNTIL => time, FREQ => freq, INTERVAL => n, COUNT => n,
+		WKST => day )
 
 Implements RRULE from RFC2445. 
 
 FREQ can be: SECONDLY MINUTELY HOURLY DAILY WEEKLY MONTHLY or YEARLY
 
-BYDAY list may contain: SU MO TU WE TH FR SA
+WKST and BYDAY list may contain: SU MO TU WE TH FR SA
 
 BYxxx items must be array references (must be bracketed): BYMONTH => [ 10 ] or
 BYMONTH => [ 10, 11, 12 ] or BYMONTH => [ qw(10 11 12) ]
@@ -391,10 +391,6 @@ Note: 'unit' parameter can be years, months, days, weeks, hours, minutes, or sec
 'duration' and 'period' methods may change in future versions, to generate open-ended sets.
 
 'bymonth' does not accept a negative value
-
-'WKST' is not implemented yet
-
-'byweekno' needs a 'weekyear' quantize unit to work properly. (See: Date::Tie)
 
 =head1 AUTHOR
 

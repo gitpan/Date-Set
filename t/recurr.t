@@ -16,7 +16,7 @@ my $events;
 my $test = 0;
 my ($result, $errors);
 
-print "1..17\n";
+print "1..19\n";
 
 sub test {
 	my ($header, $sub, $expected) = @_;
@@ -62,11 +62,11 @@ test('','$b','[19971001Z..19971101Z)');
 # $b = $a->rrule( BYMONTH => [ -10 ] );
 # test('','$b','[19970201Z..19970301Z)');
 
-# TODO
-# $b = $a->rrule( BYWEEKNO => [ 10 ] );
-# test('','$b','[19970110Z..19970111Z)');
-# $b = $a->rrule( BYWEEKNO => [ -10 ] );
-# test('','$b','[19970121Z..19970122Z)');
+
+$b = $a->rrule( BYWEEKNO => [ 10 ] );
+test('','$b','[19970303Z..19970310Z)');
+$b = $a->rrule( BYWEEKNO => [ -10 ] );
+test('','$b','[19971013Z..19971020Z)');
 
 $b = $a->rrule( BYYEARDAY => [ 10 ] );
 test('','$b','[19970110Z..19970111Z)');
@@ -99,7 +99,7 @@ test('','$b','[19970101T000010Z..19970101T000011Z),[19970101T000110Z..19970101T0
 $b = $a->rrule( UNTIL => '19970101T000300Z', BYSECOND => [ -10 ] );
 test('','$b','[19970101T000050Z..19970101T000051Z),[19970101T000150Z..19970101T000151Z),[19970101T000250Z..19970101T000251Z)');
 
-# FREQ, INTERVAL, COUNT
+# BYSETPOS, FREQ, INTERVAL, COUNT
 
 # occurrences
 
