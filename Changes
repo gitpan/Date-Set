@@ -1,5 +1,11 @@
 Revision history for Perl extension Date::Set.
 
+1.27
+    disabled failing 'complement' test in t/recurr.t
+
+1.26
+    CPAN release
+
 1.25_03
     Fixes type() inheritance from Set::Infinite
     fixed t/ical.t

@@ -21,7 +21,7 @@ use Carp;
 @ISA       = qw(Set::Infinite);
 @EXPORT    = qw();
 @EXPORT_OK = qw( $inf inf );
-$VERSION = (qw'$Revision: 1.26 $')[1];
+$VERSION = (qw'$Revision: 1.27 $')[1];
 
 
 #----- initialize package globals

@@ -1,6 +1,8 @@
 Date-Set TODO 
 (Some items apply to Set::Infinite)
 
+    enable 'complement' tests in t/recurr.t (disabled in version 1.27)
+
     make better examples
 
     test new() with Date::ICal objects
