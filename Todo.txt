@@ -1,6 +1,13 @@
 Date-Set TODO 
 (Some items apply to Set::Infinite)
 
+    DONE: first() should work for recur_by_rule - use same algorithm as select()
+
+    make first work with during() and other "intersections"
+        - tests fail in t/recurr.t
+
+    DONE: test recur_by_rule min
+
 DTSTART
 
     a package global $DTSTART might be useful
@@ -15,7 +22,7 @@ EXCLUDE
 
 RRULE
 
-	should not backtrack if it can solve the problem using COUNT
+	DONE: should not backtrack if it can solve using COUNT
 
 	where do "DUE" belong?
 

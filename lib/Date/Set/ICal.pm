@@ -44,7 +44,8 @@ use overload
         $_[2] ? ($_[1]  -  $_[0]{epoch}) : ($_[0]{epoch}  -  $_[1]) },
     '+' =>   sub { $_[0]->{epoch} + $_[1] },
     qw("" as_string),
-    # fallback => 1;
+    fallback => 1;   # we need this for the modulo "%" operation in
+                     # quantize() initialization to work
 ;
 
 %NEW_CACHE = ();

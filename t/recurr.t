@@ -135,6 +135,11 @@ $b = $a->recur_by_rule( DTSTART => $a->min, UNTIL => '19970201Z', BYDAY => [ qw(
 is("$b",'19970101Z,19970108Z,19970115Z,19970122Z,19970129Z',
     'recur_by_rule() with BYDAY and UNTIL works correctly');
     
+# some wednesdays
+$b = $a->recur_by_rule( DTSTART => $a->min, FREQ => 'WEEKLY', COUNT => 3, BYDAY => [ qw(WE) ] );
+is("$b",'19970101Z,19970108Z,19970115Z',
+    'recur_by_rule() with BYDAY and COUNT works correctly');
+    
 # last wednesday of month
 $b = $a->recur_by_rule( DTSTART => $a->min, FREQ => 'MONTHLY', UNTIL => '19970301Z', BYDAY => [ qw(-1WE) ] );
 is("$b",'19970101Z,19970129Z,19970226Z',
@@ -183,5 +188,68 @@ is("$b",'19970101Z,19971001Z,19971101Z',
 	"recur_by_rule() constructor is ok when called with a simple RRULE");
 
 # occurrences
+
+
+
+# test first()/tail of unbounded set
+# (same test as in t/rfc2445.t)
+
+my ($title, $period, $first, $tail);
+
+$title="***  Every other week on Tuesday and Thursday, unlimited  ***";
+#
+#     DTSTART;TZID=US-Eastern:19970902T090000
+#     recur_by_rule:FREQ=WEEKLY;INTERVAL=2;WKST=SU;BYDAY=TU,TH
+#
+#     ==> (1997 9:00 AM EDT)September 2,4,16,18,30;October 2,14,16
+#
+
+	$a = Date::Set->event->dtstart( start => '19970902T090000Z' )
+		->recur_by_rule( RRULE=>'FREQ=WEEKLY;INTERVAL=2;WKST=SU;BYDAY=TU,TH' );
+
+    # warn "$a is a ".$a->{method};
+    $first = $a->first;
+	is("$first", "19970902T090000Z", $title . " - scalar context");
+
+    ($first, $tail) = $a->first;
+	is("$first", 
+    '19970902T090000Z', $title . " - list context - #1");
+
+    ($first, $tail) = $tail->first;
+	is("$first", 
+    '19970904T090000Z', $title . " - #2");
+
+    ($first, $tail) = $tail->first;
+	is("$first", 
+    '19970916T090000Z', $title . " - #3");
+
+    ($first, $tail) = $tail->first;
+	is("$first", 
+    '19970918T090000Z', $title . " - #4");
+
+
+# test Martijn's unbounded set
+my $set = Date::Set->event(rule => 'FREQ=YEARLY');
+$a = $set->during( start => '20020101Z');
+
+    is ( $a->min, '20020101Z', 'min is defined');
+
+# make it a bit more difficult
+$set = Date::Set->event(rule => 'FREQ=YEARLY;BYMONTH=3');
+$a = $set->during( start => '20020101Z');
+
+    is ( $a->min, '20020301Z', 'min is working properly');
+
+# TODO: complement() is not working properly
+
+#    is ( $a->complement( $a->min )->min, '20030301Z');
+
+# TODO: first() doesn't work after intersection()
+
+#    ($first, $tail) = $a->first;
+#    is("$first", '20020301Z', "first - #1");
+
+#    ($first, $tail) = $tail->first;
+#    is("$first", '20030301Z', "first - #2");
 
 1;

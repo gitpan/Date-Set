@@ -1,5 +1,24 @@
 Revision history for Perl extension Date::Set.
 
+1.24_08
+    more tests in t/recurr.t; some fail (commented out)
+
+1.24_07
+    first() works with unbounded recur_by_rule()
+
+1.24_06
+    rules with COUNT can return bounded sets
+
+1.24_05
+    defines DESTROY so we don't call AUTOLOAD
+
+1.24_02
+    EXCLUDE_EXT fixed in Makefile.PL 
+
+1.24_01
+    some unused code removed in rrule
+
+1.24
 1.23_10
     clear string warnings in Date::Set::ICal
 

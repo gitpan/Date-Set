@@ -21,7 +21,7 @@ use Carp;
 @ISA       = qw(Set::Infinite);
 @EXPORT    = qw();
 @EXPORT_OK = qw(type $inf inf);
-$VERSION = (qw'$Revision: 1.24 $')[1];
+$VERSION = (qw'$Revision: 1.24_08 $')[1];
 
 
 #----- initialize package globals
@@ -1057,7 +1057,7 @@ sub recur_by_rule {
     my %parm = (
         # FREQ     => 'YEARLY',  # whatever
         INTERVAL => 1,
-        COUNT    => 1e10,    # any big number
+        COUNT    => $inf, 
         UNTIL    => undef,
         # WKST     => $WKST,
         RRULE    => undef,
@@ -1097,9 +1097,12 @@ sub recur_by_rule {
     $parm{PERIOD} = $parm{PERIOD}->numeric if defined $parm{PERIOD};
 
 
-    $parm{DTSTART}   = $self->{dtstart} if defined $self->{dtstart};
-    $parm{DTSTART}   = $parm{PERIOD}->{dtstart} if ref($parm{PERIOD}) and defined $parm{PERIOD}->{dtstart} and not defined $parm{DTSTART};
-    $parm{DTSTART}   = $self->new( $parm{DTSTART} )->min if defined $parm{DTSTART};
+    $parm{DTSTART}   = $self->{dtstart} 
+        if defined $self->{dtstart} and not defined $parm{DTSTART};
+    $parm{DTSTART}   = $parm{PERIOD}->{dtstart} 
+        if ref($parm{PERIOD}) and defined $parm{PERIOD}->{dtstart} and not defined $parm{DTSTART};
+    $parm{DTSTART}   = $self->new( $parm{DTSTART} )->min 
+        if defined $parm{DTSTART};
     $parm{DTSTART_save} = $parm{DTSTART};   
 
     # print " dtstart is $parm{DTSTART} , was $self->{dtstart} \n";
@@ -1111,11 +1114,11 @@ sub recur_by_rule {
         $has{period} = 1;
         print " PERIOD: $parm{PERIOD} \n" if $DEBUG;
         # try to make $self smaller
+
+        # TODO: test for too_complex PERIOD? (we test $self later)
         $self = $self->intersection( $parm{PERIOD} );
 
         print "  self intersected with period\n" if $DEBUG;
-
-        # $self->{dtstart} = $parm{PERIOD}->{dtstart} if ref($parm{PERIOD}) and defined $parm{PERIOD}->{dtstart} and not defined $self->{dtstart};
     }
     else {
         $has{period}  = 0;
@@ -1133,11 +1136,11 @@ sub recur_by_rule {
             if ( defined $parm{DTSTART_save} ) {
                 # print "  ( $parm{DTSTART_save} < $self->min )  \n";
                 if ( ( $parm{DTSTART_save} < $self->min ) and 
-                     ($parm{COUNT} != 1e10) ) {
+                     ($parm{COUNT} < $inf) ) {
                     $self = $self->union( $parm{DTSTART_save}, $self->min );
                 }
                 if ( $parm{DTSTART_save} > $self->min ) {
-                    $self = $self->intersection( $parm{DTSTART_save}, inf );
+                    $self = $self->intersection( $parm{DTSTART_save}, $inf );
                 }
             }
 
@@ -1166,6 +1169,7 @@ sub recur_by_rule {
         or ( $self->min and $self->min == -&inf )
         or ( $self->max and $self->max == &inf ) )
     {
+
         my $b = $self->new();
         $self->trace( title => "rrule:backtrack" );
         print " BACKTRACKING \n" if $DEBUG;
@@ -1175,11 +1179,70 @@ sub recur_by_rule {
         $b->{parent}      = $self->copy;
         $b->{method}      = 'recur_by_rule';
         $b->{param}       = [%parm];
+
+        # TODO: set up {min} and {max}, if possible...
+
+
+        # now that we have a "function" we can try to find a valid subset 
+        #    if we have a COUNT
+        if (exists $parm{COUNT}  &&
+            exists $parm{FREQ}   &&
+            ($parm{COUNT} != &inf) &&
+            ($self->min   != -&inf)
+           ) {
+            # warn "we have COUNT=$parm{COUNT} INTERVAL=$parm{INTERVAL} and start=".$self->min." and FREQ=$parm{FREQ}";
+            my $count = $parm{COUNT} * $parm{INTERVAL};
+            my $try = $self->new( $self->min )->
+                offset( unit => $FREQ{$parm{FREQ}}, value => [0,$count] );
+            # warn "set = $try";
+            my $subset = $b->intersection($try);
+            # warn "subset = $subset";
+            my $size = 1 + $#{$subset->{list}};
+            if ( $size == $parm{COUNT} ) {
+                # warn "success: $size / $parm{COUNT}";
+                return $subset;
+            }
+            # TODO: if we were sure we never fail we wouldn't have to use backtracking
+            # warn "failed: $size / $parm{COUNT}";
+        }
+
+
+        # try to make a subset suitable for first() iteration
+        # warn "trying 'first': ";
+        if (exists $parm{FREQ}   &&
+            ($self->min   != -&inf)
+           ) {
+            # warn "we have COUNT=$parm{COUNT} INTERVAL=$parm{INTERVAL} and start=".$self->min." and FREQ=$parm{FREQ}";
+            my $count = $parm{INTERVAL};
+            my $try = $self->new( $self->min )->
+                offset( unit => $FREQ{$parm{FREQ}}, value => [0,$count] );
+            $try->{list}[0]{open_end} = 1;
+            # warn "\n    set = $try";
+            my $subset = $b->intersection($try);
+            # warn "\n    subset = $subset";
+            my $size = 1 + $#{$subset->{list}};
+            if ( $size > 0 ) {
+
+                # warn "\n    self: $self \n    parm: ".join(' ', map { "$_=$parm{$_}" } keys %parm );
+
+                # move $self ahead
+                $b->{parent} = $b->{parent}->complement($try);
+                @{$b->{min}} = $try->max_a;
+                # warn "    parent: ".$b->{parent};
+
+                return $subset->union($b);
+            }
+            else {
+                # warn "failed: 'first' $size";
+            }
+        }
+
+
         return $b;
     }
 
     print "  self numeric\n" if $DEBUG;
-    $self = $self->numeric;
+    $self = $self->numeric;   # again?
     # $parm{PERIOD} = $parm{PERIOD}->numeric if $has{period};
     # $parm{DTSTART} = $parm{DTSTART}->numeric if defined $parm{DTSTART};
 
@@ -1188,31 +1251,9 @@ sub recur_by_rule {
 
     my $when = $parm{PERIOD};
 
-    # NOTE: is this redundant? maybe already had it checked above...
-    # DTSTART gives the default values for month, day, h, m, s
-    unless ( defined $parm{DTSTART} ) {
-        $parm{DTSTART} = $parm{PERIOD}->min;
-    }
-    else {
-        # make sure DTSTART is the right type
-        print "  make sure DTSTART is the right type\n" if $DEBUG;
-        $parm{DTSTART} = $self->new( $parm{DTSTART} )->min;
-
-        # apply DTSTART, just in case
-        $when = $when->intersection( $parm{DTSTART}, $FUTURE );
-    }
-
     # print " PARAMETERS: ", join(":", %parm), "\n";
 
     $when->_print( title => 'WHEN' ) if $DEBUG;
-
-#    # UNTIL and COUNT MUST NOT occur in the same 'recur'  (why?)
-#    if ( $parm{UNTIL} ) {
-#
-#        # UNTIL
-#        $when->_print( title => 'UNTIL' ) if $DEBUG;
-#        $when = $when->intersection( $PAST, $parm{UNTIL} );
-#    }
 
     $parm{WKST} = $self->{wkst} unless defined $parm{WKST};
 
@@ -1224,7 +1265,7 @@ sub recur_by_rule {
 
         $when->_print( title => 'FREQ' ) if $DEBUG;
 
-        if ( $self->max == &inf ) {
+        if ( $self->max == $inf ) {
 
             # TODO
             # that's real hard to quantize -- try to fix it
@@ -1270,13 +1311,14 @@ sub recur_by_rule {
         if ($parm{INTERVAL} > 1) {
             $freq = $freq
               # -- INTERVAL works here:
-              ->select( freq => $parm{INTERVAL}, count => 999999, strict => 0 )
-              ->_print(
+              ->select( freq => $parm{INTERVAL}, count => $inf, strict => 0 );
+            # carp "INTERVAL $parm{INTERVAL}";
+            $freq->_print(
                 title => 'FREQ('
                   . $parm{FREQ}
                   . ')+INTERVAL('
                   . $parm{INTERVAL} . ')'
-              )->compact;
+              )->compact if $DEBUG;
         }
 
         # -- BYSETPOS special handling -- 
@@ -1308,7 +1350,7 @@ sub recur_by_rule {
 
               # -- COUNT works here:
               ->select( freq => 1, count => $parm{COUNT}, strict => 0 )
-              ->_print( title => 'COUNT(' . $parm{COUNT} . ')' )
+              # ->_print( title => 'COUNT(' . $parm{COUNT} . ')' )
 
               # ->duration( unit => 'seconds', duration => 0 ) 
               ->offset(mode=>'begin', value=>[0,0])
@@ -1406,10 +1448,7 @@ sub _apply_DTSTART {
 
 # INTERNAL sub to calculate BYxxx
 #   input: $when, %parm
-
 #   output: $when (filtered)
-
-# TODO: This code needs to be refactored into ~ <50 line chunks and tested
 
 sub _rrule_by {
 
@@ -1565,6 +1604,7 @@ sub _rrule_by {
             $when = $when->intersection(
                 $when->quantize(
                     unit => $prev_unit,
+                    strict => 0,
                     fixtype => 0 )
                  ->offset(
                     mode   => 'circle',
@@ -1583,13 +1623,16 @@ sub _rrule_by {
     if ( exists $parm{BYSETPOS} ) {
         my @by = @{ $parm{BYSETPOS} };
         foreach (@by) { $_-- if $_ > 0 }    # BY starts in 1; perl starts in 0
-        $when = $when->intersection( 
-           $when->compact
-           # ->_print(title=>'bysetpos1')
-           ->select( by => [@by] )
-           # ->_print(title=>'bysetpos2')
-        )->no_cleanup;
+        # $when = $when->intersection( 
+        #   $when->compact
+        #   # ->_print(title=>'bysetpos1')
+        #   ->select( by => [@by] )
+        #   # ->_print(title=>'bysetpos2')
+        # )->no_cleanup;
         $when->_print( title => 'BYSETPOS' ) if $DEBUG;
+
+        $when = $when->select( by => [@by] );
+        # carp " When: $when ";
     }
     # }}} 
 
@@ -1825,6 +1868,8 @@ It answers questions like,
 See also previous note on 'weekyear' in 'About ISO 8601 week'.
 
 =cut
+
+sub DESTROY {}
 
 # try to make up for unwritten methods
 # currently defined are:
