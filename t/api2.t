@@ -10,16 +10,19 @@
 use strict;
 use warnings;
 use Test::More qw(no_plan);
+use Carp;
 
 BEGIN { use_ok('Date::Set') };
 
+use Date::Set qw($inf);
 my ($title, $a, $a2, $b, $period, $RFC);
 
 # $Date::Set::DEBUG = 1;
 
+# carp " INF is $inf ";
 $title = "event() constructor returns 'forever'";
     $a = Date::Set->event();
-    is("$a",     '(-inf..inf)', $title);
+    is("$a",     "(-$inf..$inf)", $title);
 
 $title = "event-at constructor";
     $a = Date::Set->event( 
@@ -48,14 +51,14 @@ $title = "event at";
 $title = "event-start constructor";
     $a = Date::Set->event( 
         start    => '19950101Z' );
-    is("$a",       '[19950101Z..inf)', $title);
+    is("$a",       "[19950101Z..$inf)", $title);
 
 
 
 $title = "event-end constructor";
     $a = Date::Set->event( 
         end    => '19950101Z' );
-    is("$a",       '(-inf..19950101Z]', $title);
+    is("$a",       "(-$inf..19950101Z]", $title);
 
 $title = "event-start-end constructor";
     $a = Date::Set->event( 
@@ -165,7 +168,7 @@ $title = "event rule + start, without dtstart";
         start => '19970902T090000Z',
         rule  => 'FREQ=DAILY;COUNT=10' );
     $b = Date::Set->event( end => '19990101Z' );
-    is("$b", '(-inf..19990101Z]', 'event end');
+    is("$b", "(-$inf..19990101Z]", 'event end');
     $b = $a->intersection( $b );
     is("$b", 
         '19970902T090000Z,19970903Z,19970904Z,19970905Z,' .
@@ -176,7 +179,7 @@ $title = "event rule + dtstart";
     $a = Date::Set->dtstart( start => '19970902T090000Z')->
         event( rule  => 'FREQ=DAILY;COUNT=10' );
     $b = Date::Set->event( end => '19990101Z' );
-    is("$b", '(-inf..19990101Z]', 'event end');
+    is("$b", "(-$inf..19990101Z]", 'event end');
     $b = $a->intersection( $b );
     is("$b", 
         '19970902T090000Z,19970903T090000Z,19970904T090000Z,19970905T090000Z,' .
@@ -190,7 +193,7 @@ $title = "event rule + end";
         end => '19990101Z',
         rule  => 'FREQ=DAILY;COUNT=10' );
     $b = Date::Set->event( start => '19970902T090000Z' );
-    is("$b", '[19970902T090000Z..inf)', 'event start');
+    is("$b", "[19970902T090000Z..$inf)", 'event start');
     $b = $a->intersection( $b );
     is("$b", 
         '19970902T090000Z,19970903Z,19970904Z,19970905Z,' .

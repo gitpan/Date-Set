@@ -22,24 +22,29 @@ It also adds some cacheing for string, epoch and new.
 
 require Exporter;
 package Date::Set::ICal;
-
-use vars qw(@ISA @EXPORT @EXPORT_OK %NEW_CACHE $DEBUG $VERSION);
+use strict;
+use warnings;
+use Carp;
+use vars qw(@ISA @EXPORT @EXPORT_OK %NEW_CACHE $DEBUG $VERSION $inf);
 $DEBUG = 0;
 # @ISA = qw(Date::ICal);
 @EXPORT = qw();
-@EXPORT_OK = qw( ); # quantizer );
+@EXPORT_OK = qw(); 
 $VERSION = (qw'$Revision: 1.23 $')[1];
 
-use strict;
 use Date::ICal;
-use Set::Infinite::Element_Inf;
+
+our $inf = 10**10**10;
 
 use overload
-    '0+' =>  sub { $_[0]->{epoch} },   # \&Date::ICal::epoch,
-    '<=>' => sub { $_[2] ? ($_[1] <=> $_[0]{epoch}) : ($_[0]{epoch} <=> $_[1]) },
-    '-' =>   sub { $_[2] ? ($_[1]  -  $_[0]{epoch}) : ($_[0]{epoch}  -  $_[1]) },
+    '0+' =>  sub { $_[0]->{epoch} }, 
+    '<=>' => sub { 
+        $_[2] ? ($_[1] <=> $_[0]{epoch}) : ($_[0]{epoch} <=> $_[1]) },
+    '-' =>   sub { 
+        $_[2] ? ($_[1]  -  $_[0]{epoch}) : ($_[0]{epoch}  -  $_[1]) },
     '+' =>   sub { $_[0]->{epoch} + $_[1] },
     qw("" as_string),
+    # fallback => 1;
 ;
 
 %NEW_CACHE = ();
@@ -47,7 +52,7 @@ use overload
 =head2 $new($self, $arg)
 
 $arg can be a string, another Date::Set::ICal object, 
-a Date::ICal object, or a Set::Infinite::Element_Inf object.
+a Date::ICal object, Inf or -Inf.
 
 =head3 Internals
 
@@ -64,93 +69,45 @@ one of these objects in doublequotes.
 
 {ical} - a Date::ICal object.
 
-or
-
-{inf} - a Set:Infinite::Element_Inf object.
-
 =cut
 
 sub new {
     my $self = shift;
-    my $data = shift || '';
+    my $string = $_[0]; 
 
     # figure out what kind of parameter we were given and 
     # get it in a standard format, an iCalendar string
-    my $string;
-    if (ref($data)) {
-        if ($data->isa(__PACKAGE__)) {
-            return $data; # nothing to do
-        }
-        elsif ($data->isa('Date::ICal')) {
-            $self = bless {}, __PACKAGE__;
-            $self->{ical} = $data;
-            $self->{epoch} = $self->{ical}->epoch;
-            return $self;
-        }
-        elsif ($data->isa('Set::Infinite::Element_Inf')) {
-            $self = bless {}, __PACKAGE__;
-            $self->{epoch} = $self->{inf} = $data;
-            return $self;
-        }
-        else {
-            $string = "$data"; # use object's string representation
-        }
-    }
-    else {
-        $string = $data;
-    }
-
-    # Everything from now on use $string and @_
-    # print " [ical:new:", join(';', @_) , "] ";
-
-    if ($string eq '') {
-        # print " [ical:new:null] ";
-        # return Set::Infinite::Element_Inf->null ;
-        $self = bless {}, __PACKAGE__;
-        $self->{epoch} = $self->{inf} = Set::Infinite::Element_Inf->null;
-        return $self;
-    }
-
-    # get it from " $NEW_CACHE "
+    return $string if ref($string);
     return $NEW_CACHE{$string} if exists $NEW_CACHE{$string};
 
-    # if this isn't a null element and it's not in the cache,
+    # print " [ical:new:", join(';', @_) , "] ";
+
     # we actually have to parse the string and make a new object
-    if ($#_ < 0) {  # there are no more parameters
+    if ($#_ == 0) {  # there are no more parameters
         # epoch or ical mode?
     
         # This is a BOGUS way to tell if a string is a well-formed iCalendar
         # date string, but it's marginally better than what went before
-        # if ($string =~ /^\d{4}\d{2}\d{2}[TZ]/) {
-        # if ($string =~ /^\d{8}[TZ]/) {
         if ($string =~ /[TZ]/) {
-            #print "1 - $string is the string. we think it's an ical\n";
+            # carp "1 - $string is the string. we think it's an ical";
             # must be ical format
             $self = bless {}, __PACKAGE__;
             $self->{ical} = Date::ICal->new( ical => $string );
             $self->{string} = $string;    # cache string
             $self->{epoch} = $self->{ical}->epoch;
-            $NEW_CACHE{$string} = $self;  # cache object
-            return $self;
+            return $NEW_CACHE{$string} = $self;  # cache object
         }
-        else {
-            # NOT 19971024[TZ] -- must be "epoch"
-            # print "2\n";
-            # most frequent case: use " $NEW_CACHE " to optimize
-            $self = bless {}, __PACKAGE__;
-            # $self->{ical} = Date::ICal->new( epoch => $string );
-            $self->{epoch} = $string;     # cache epoch
-            $NEW_CACHE{$string} = $self;  # cache object
-            return $self;
-        }
+        return $NEW_CACHE{$string} =  $inf if $string == $inf;
+        return $NEW_CACHE{$string} = -$inf if $string == -$inf;
+        # "epoch"
+        # print "2\n";
+        $self = bless { epoch => $string }, __PACKAGE__;
+        return $NEW_CACHE{$string} = $self;  # cache object
     }
-    # else {
-
     # print "3";
     $self = bless {}, __PACKAGE__;
-    $self->{ical} = Date::ICal->new( $data, @_ );
+    $self->{ical} = Date::ICal->new(@_);
     $self->{epoch} = $self->{ical}->epoch;
-
     return $self;
 }
 
@@ -167,9 +124,6 @@ sub as_string {
     if (not exists $self->{string}) {
         if (exists $self->{ical}) {
             $self->{string} = $self->{ical}->ical;
-        }
-        elsif (exists $self->{inf}) {
-            $self->{string} = "$self->{inf}";
         }
         else {
             $self->{ical} = Date::ICal->new( epoch => $self );

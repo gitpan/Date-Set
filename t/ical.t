@@ -11,6 +11,7 @@ use warnings;
 use Test::More qw(no_plan);
 
 BEGIN { use_ok('Date::Set') };
+use Date::Set qw($inf);
 
 $a = Date::Set->new('19971024T120000Z', '19971024T130000Z');
 
@@ -27,7 +28,7 @@ is($a->union("19971024T160000Z", "19971024T170000Z")->as_string,
     'union() returns a correct set for the union of 2 periods');
 
 is($a->complement->as_string,
-    '(-inf..19971024T120000Z),(19971024T130000Z..inf)',
+    "(-$inf..19971024T120000Z),(19971024T130000Z..$inf)",
     'complement() with no args correctly returns the infinite set of time not in the period');
 
 is($a->complement('19971024T122000Z','19971024T124000Z')->as_string,

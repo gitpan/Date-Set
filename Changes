@@ -1,5 +1,17 @@
 Revision history for Perl extension Date::Set.
 
+1.23_10
+    clear string warnings in Date::Set::ICal
+
+1.23_09
+    uses native "Infinity" stringification
+
+1.23_08
+    fixed some warnings
+
+1.23_07
+    wkst() is a method too (was global)
+
 1.23_03
     DTSTART is not taken from the period, it must be given by a
         dtstart parameter or by 'DTSTART=xx' inside a rule.

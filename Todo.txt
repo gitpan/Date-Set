@@ -7,7 +7,7 @@ DTSTART
 
 WKST
 
-    only exists as global and as recur parameter. Make it an object variable like dtstart.
+    Test (api2.t): as method, global and as recur parameter.
 
 EXCLUDE
 
@@ -20,6 +20,8 @@ RRULE
 	where do "DUE" belong?
 
 	TZ ?
+
+        try to give min/max even if 'too_complex'
 
 SYNTAX
 
@@ -68,7 +70,7 @@ DOCUMENTATION
     Move whatever is interesting in recur_by_rule() into event() docs.
 
 	document:
-		new method 'compact'
+		new method 'compact', 'numeric'
 		offset option 'mode=>circle'
 		iterate
 		no_cleanup
@@ -102,7 +104,7 @@ CACHEING
 
 	think about: caching for union, etc  
 
-	extra: caching for the filters. 
+	extra: caching for filters. 
 
 OTHER
 
@@ -119,3 +121,4 @@ OTHER
 	old: Make a global mode for `open_*' 
 
 	old: Quantize_Date should care of daylight savings time
+

@@ -8,11 +8,11 @@ use strict;
 
 package Date::Set;
 
-use Set::Infinite ':all';
+use Set::Infinite;
 use vars qw(@ISA @EXPORT @EXPORT_OK  $AUTOLOAD $VERSION
   %FREQ %WEEKDAY %WHICH_OCCURRENCE
   $FUTURE $PAST $FOREVER $NEVER
-  $WKST
+  $WKST $inf
   $DEBUG
   );    # perl standard stuff / lookup tables / date sets / debug
 
@@ -20,8 +20,8 @@ use AutoLoader;
 use Carp;
 @ISA       = qw(Set::Infinite);
 @EXPORT    = qw();
-@EXPORT_OK = qw(type);
-$VERSION = (qw'$Revision: 1.23_04 $')[1];
+@EXPORT_OK = qw(type $inf inf);
+$VERSION = (qw'$Revision: 1.24 $')[1];
 
 
 #----- initialize package globals
@@ -29,6 +29,8 @@ $VERSION = (qw'$Revision: 1.23_04 $')[1];
 $DEBUG                = 0;
 $Set::Infinite::TRACE = 0;
 Set::Infinite::type('Date::Set::ICal');
+$inf = 10**10**10;
+sub inf { $inf }
 
 $WKST = 'MO';      # by default, weeks start on monday
 
@@ -62,6 +64,7 @@ sub new {
     bless $self, __PACKAGE__;
     # print " new ";
     $self->{dtstart} = ref($class) ? $class->{dtstart} : undef;
+    $self->{wkst} =    ref($class) ? $class->{wkst}    : $WKST;
     return $self;
 }
 
@@ -171,7 +174,7 @@ you have a 'recurrence'.
 
 A recurrence is created by a 'recurrence rule':
 
-    $recurr = Date::Set->event( rule = 'FREQ=YEARLY' );   # all possible years
+    $recurr = Date::Set->event( rule => 'FREQ=YEARLY' );   # all possible years
 
 An unbounded recurrence like this cannot be printed. 
 It would take an infinitely long roll of paper.
@@ -532,9 +535,11 @@ sub exclude {
 
 =head2 wkst STRING
 
-    Date::Set::wkst('SU');
+    Date::Set::wkst('SU');    # global change
 
-Sets/reads the module's global "week start day". 
+    $set->wkst('MO');
+
+Sets/reads the "week start day". 
 
 The parameter must be one of 
 'MO' (default), 'TU', 'WE', 'TH', 'FR', 'SA', or 'SU'.
@@ -549,10 +554,18 @@ Return value is current wkst value.
 
 =cut
 
-# TODO: wkst is global - make it work locally too, if applied to an object
+# wkst works locally too, if applied to an object
 
 sub wkst {
-    my $value = pop;
+    my $class = shift;
+    my $value = shift;
+    $value = $class unless defined $value;
+    if (ref($class)) {
+        # carp " $class:",$class->{wkst}," => ", defined $value , ":$value ";
+        $class->{wkst} = uc($value) if (defined $value) and ($value =~ /^\w\w$/);
+        return $class->{wkst};
+    }
+    # carp " $class:$WKST => ", defined $value , ":$value ";
     $WKST = uc($value) if (defined $value) and ($value =~ /^\w\w$/);
     return $WKST;
 }
@@ -623,6 +636,12 @@ sub fevent {
 
     # carp "fevent $has";
 
+    # if ($has == 0) {
+    #    # start
+    #    # carp " SELF $self ".$self->new(-$inf, $inf);
+    #    return $self->new(-$inf, $inf) unless ref($self);
+    #   return $self;
+    # }
     if ($has == 1) {
         # start
         return $self->new($parm{start}, inf) unless ref($self);
@@ -986,8 +1005,12 @@ sub rrule {
 # This private routine parse an RRULE or an EXRULE and hands it back in the chunks
 # that recur_by_rule and exclude_by_rule expect
 sub _parse_rule {        
-    my ($rrule) = @_; 
-    my %return;
+    my $return = shift;
+    my ($rrule) = $$return{RRULE}; 
+
+    return unless defined $rrule;
+    # print "  RULE: [ $rrule ]\n";
+
     # RRULEs look like 'FREQ=foo;INTERVAL=bar;' etc.
      my @pieces = split(';', $rrule);
      foreach (@pieces) {
@@ -995,17 +1018,19 @@ sub _parse_rule {
        
         # BY<FOO> parameters should be arrays. everything else should be strings
          if ($name =~ /^BY/i) {
-            @{$return{$name}} = split(/,/,$value);
+            @{$$return{$name}} = split(/,/,$value);
          }
          else {
-            $return{$name} = $value;
+            $$return{$name} = $value;
          }
      }
-     return %return;
 }
 
 sub recur_by_rule {
     my $self = shift;
+
+    # $self = $self->numeric;
+    # carp "recur_by_rule $self";
 
     # TODO - put 'if' around the parsing so that 'backtrack' doesn't have
     # to redo it
@@ -1032,23 +1057,21 @@ sub recur_by_rule {
     my %parm = (
         # FREQ     => 'YEARLY',  # whatever
         INTERVAL => 1,
-        COUNT    => 999999,    # any big number
+        COUNT    => 1e10,    # any big number
         UNTIL    => undef,
-        WKST     => $WKST,
+        # WKST     => $WKST,
         RRULE    => undef,
         PERIOD   => undef, 
         DTSTART  => undef,
         INCLUDE_DTSTART => 1,  # *ALWAYS* include DTSTART in result set
 		EXCLUDE_DTSTART => 0,  # DON'T remove DTSTART from result set
-        @parm
+        @parm,
     );
 
     my ( $rrule, %has );
-
-    # parse an RRULE out into its pieces.
-    if (defined $parm{'RRULE'} ) {
-        my %temp_parm = _parse_rule($parm{'RRULE'}); 
-        %parm = (%parm, %temp_parm);
+    if (exists $parm{'RRULE'}) {
+        _parse_rule(\%parm); # parse an RRULE out into its pieces.
+        undef $parm{'RRULE'};
     }
 
     # this is the constructor interface
@@ -1069,8 +1092,14 @@ sub recur_by_rule {
     # later! ---> $self->{dtstart} = $parm{DTSTART}   if defined $parm{DTSTART};
     # ... and vice-versa
 
+
+    $self = $self->numeric;
+    $parm{PERIOD} = $parm{PERIOD}->numeric if defined $parm{PERIOD};
+
+
     $parm{DTSTART}   = $self->{dtstart} if defined $self->{dtstart};
     $parm{DTSTART}   = $parm{PERIOD}->{dtstart} if ref($parm{PERIOD}) and defined $parm{PERIOD}->{dtstart} and not defined $parm{DTSTART};
+    $parm{DTSTART}   = $self->new( $parm{DTSTART} )->min if defined $parm{DTSTART};
     $parm{DTSTART_save} = $parm{DTSTART};   
 
     # print " dtstart is $parm{DTSTART} , was $self->{dtstart} \n";
@@ -1084,6 +1113,7 @@ sub recur_by_rule {
         # try to make $self smaller
         $self = $self->intersection( $parm{PERIOD} );
 
+        print "  self intersected with period\n" if $DEBUG;
 
         # $self->{dtstart} = $parm{PERIOD}->{dtstart} if ref($parm{PERIOD}) and defined $parm{PERIOD}->{dtstart} and not defined $self->{dtstart};
     }
@@ -1101,7 +1131,9 @@ sub recur_by_rule {
 
             # if we have "COUNT" we must start at DTSTART
             if ( defined $parm{DTSTART_save} ) {
-                if ( $parm{DTSTART_save} < $self->min ) {
+                # print "  ( $parm{DTSTART_save} < $self->min )  \n";
+                if ( ( $parm{DTSTART_save} < $self->min ) and 
+                     ($parm{COUNT} != 1e10) ) {
                     $self = $self->union( $parm{DTSTART_save}, $self->min );
                 }
                 if ( $parm{DTSTART_save} > $self->min ) {
@@ -1118,6 +1150,7 @@ sub recur_by_rule {
     # carp " PERIOD $parm{PERIOD} ";
     # $DEBUG = 0;
 
+    print "  test until\n" if $DEBUG;
     # UNTIL and COUNT MUST NOT occur in the same 'recur'  (why?)
     if ( $parm{UNTIL} ) {
         # UNTIL
@@ -1128,9 +1161,10 @@ sub recur_by_rule {
     # this is the backtracking interface.
     # It allows the program to defer processing if it does not have enough
     # information to proceed.
+    # print "  testing self $self  min = ",$self->min," max = ",$self->max, "\n";
     if ( ( $self->{too_complex} )
-        or ( $self->min == -&inf )
-        or ( $self->max == &inf ) )
+        or ( $self->min and $self->min == -&inf )
+        or ( $self->max and $self->max == &inf ) )
     {
         my $b = $self->new();
         $self->trace( title => "rrule:backtrack" );
@@ -1144,6 +1178,11 @@ sub recur_by_rule {
         return $b;
     }
 
+    print "  self numeric\n" if $DEBUG;
+    $self = $self->numeric;
+    # $parm{PERIOD} = $parm{PERIOD}->numeric if $has{period};
+    # $parm{DTSTART} = $parm{DTSTART}->numeric if defined $parm{DTSTART};
+
     # -- don't do this before backtracking!
     $parm{PERIOD} = $self unless $has{period};
 
@@ -1156,6 +1195,7 @@ sub recur_by_rule {
     }
     else {
         # make sure DTSTART is the right type
+        print "  make sure DTSTART is the right type\n" if $DEBUG;
         $parm{DTSTART} = $self->new( $parm{DTSTART} )->min;
 
         # apply DTSTART, just in case
@@ -1173,6 +1213,8 @@ sub recur_by_rule {
 #        $when->_print( title => 'UNTIL' ) if $DEBUG;
 #        $when = $when->intersection( $PAST, $parm{UNTIL} );
 #    }
+
+    $parm{WKST} = $self->{wkst} unless defined $parm{WKST};
 
     if ( $parm{FREQ} ) {
 
@@ -1198,6 +1240,7 @@ sub recur_by_rule {
 
         # -- WKST works here:   --> only if FREQ=WEEKLY; see also: BYWEEKNO
         if ( $parm{FREQ} eq 'WEEKLY' ) {
+
             my $wkst = $WEEKDAY{ $parm{WKST} };
 
             # print " [ wkst: $parm{WKST} = $wkst ] \n";
@@ -1292,6 +1335,11 @@ sub recur_by_rule {
         $rrule = $rrule->union( $parm{DTSTART_save} ) if $parm{INCLUDE_DTSTART};
         $rrule = $rrule->complement( $parm{DTSTART_save} ) if $parm{EXCLUDE_DTSTART};
     }
+
+    # carp " returning $self ";
+    # carp "       and $rrule ";
+    # carp "        as " . $rrule->fixtype ;
+    # carp "       and " . $self->fixtype ;
 
     if ( $has{period} ) {
         return $self->union($rrule)->fixtype;
@@ -1408,7 +1456,7 @@ sub _rrule_by {
                     strict => 0,
                     fixtype => 0 )
                   # ->_print( title => $BYfoo . ":offset=" . $small_unit . join ( ',', @by ) )
-            )->no_cleanup;
+             )->no_cleanup;
             $when->_print( title => $BYfoo ) if $DEBUG;
             $has{months} = 1;
             $has{days}   = 1 if $small_unit eq 'days';
@@ -1523,7 +1571,7 @@ sub _rrule_by {
                     unit   => $has,
                     value  => [@by],
                     strict => 0, fixtype => 0 )
-            )->no_cleanup;
+             )->no_cleanup;
             $when->_print( title => $BYx ) if $DEBUG;
             $has{$has} = 1;
         }
@@ -1621,7 +1669,7 @@ sub exclude_by_rule {
     # print " [   period =     ", $parm{period}," ]\n";
     # print " [   rrule =      ", $parm{period}->recur_by_rule(%parm)," ]\n";
     # print " [   complement = ", $parm{period}->recur_by_rule(%parm)->complement," ]\n";
-    return $self->complement( $period->recur_by_rule(%parm) );
+    return $self->numeric->complement( $period->recur_by_rule(%parm) )->fixtype;
 }
 
 =head2 recur_by_date
@@ -1741,8 +1789,8 @@ sub occurrences {    # event->, period
         carp "$self -> occurrences called without a period argument";
     }
 
-    my $intersection =  $self->intersection( $parm{period} );
-    return($intersection);
+    my $intersection =  $self->numeric->intersection( $parm{period}->numeric );
+    return($intersection)->fixtype;
 }
 
 =head2 next_year, next_month, next_week, next_day, next_hour, next_minute, next_weekyear ($date_set)

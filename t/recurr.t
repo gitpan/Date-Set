@@ -68,14 +68,19 @@ $a = Date::Set->period( time => ['19970101Z', '19971231T235959Z'] );
 $b = Date::Set->recur_by_rule( DTSTART => $a->min, BYMONTH => [ 10 ] )->occurrences( period => $a );
 is("$b",'19970101Z,19971001Z',
 	"recur_by_rule() constructor is ok and includes DTSTART");
-$Date::Set::DEBUG=0;
+# $Date::Set::DEBUG=0;
 
-# $Date::Set::DEBUG=1;
 # recur_by_rule as constructor, with 'period'
+# $Date::Set::DEBUG=1;
+# $Set::Infinite::TRACE=1;
+# print " period is $a \n";
+# print " DTSTART is ",$a->min," \n";
+# $Set::Infinite::TRACE=0;
 $b = Date::Set->recur_by_rule( DTSTART => $a->min, period => $a, BYMONTH => [ 10 ] );
+# exit;
 is("$b",'19970101Z,19971001Z',
 	"recur_by_rule() constructor with period is ok");
-$Date::Set::DEBUG=0;
+# $Date::Set::DEBUG=0;
 
 
 
