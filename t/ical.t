@@ -59,6 +59,11 @@ is("$events",
 	"[20010501T130000Z..20010501T140000Z),[20010508T130000Z..20010508T140000Z),[20010522T130000Z..20010522T140000Z),[20010529T130000Z..20010529T140000Z)",
     'describe this test, please; reduce this test into smaller tests, or document better');
 
+# TESTS FOR FUNCTIONS THAT GET USED IN OVERLOADS -------------------
+
+# Test with an epoch string from the 1970s
+$a = Date::Set::ICal->new('25682400');
+is($a->date_ical->epoch(), 25682400 , "Parsed an epoch time from 1970 correctly");
 
 LAST: 
 1;
