@@ -20,7 +20,7 @@ use Carp;
 @ISA       = qw(Set::Infinite);
 @EXPORT    = qw();
 @EXPORT_OK = qw(type);
-$VERSION = (qw'$Revision: 1.21 $')[1];
+$VERSION = (qw'$Revision: 1.22 $')[1];
 
 =head1 NAME
 
