@@ -1,5 +1,14 @@
 Revision history for Perl extension Date::Set.
 
+1.24_20
+    dtstart() accepts a Date::Set as parameter
+
+1.24_19
+    fixed BYDAY recurrence base to use FREQ+BYMONTH instead of FREQ alone
+
+1.24_18
+    recur_by_rule has first() when set begins in -inf
+
 1.24_17
     fixed eg/*
     requires Set::Infinite 0.38 so that it gets correctly tested by CPAN

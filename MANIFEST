@@ -1,7 +1,8 @@
 Changes
 MANIFEST
 README
-Todo.txt
+TODO
+LICENSE
 Makefile.PL
 lib/Date/Set.pm
 lib/Date/Set/ICal.pm

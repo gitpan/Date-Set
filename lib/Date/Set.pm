@@ -21,7 +21,7 @@ use Carp;
 @ISA       = qw(Set::Infinite);
 @EXPORT    = qw();
 @EXPORT_OK = qw(type $inf inf);
-$VERSION = (qw'$Revision: 1.24_17 $')[1];
+$VERSION = (qw'$Revision: 1.25 $')[1];
 
 
 #----- initialize package globals
@@ -862,11 +862,12 @@ sub dtstart {    # start
     my ( $self, %parm ) = @_;
     unless (ref($self)) {
         # constructor
-        $self = $self->new( $parm{start}, $FUTURE );
+        $self = $self->new( $parm{start} )->offset( value => [ 0, $inf ] );   # $parm{start}, $FUTURE );
         $self->{dtstart} = $parm{start};
+        $self->trace( title => 'dtstart-new' );
         return $self;
     }
-    $self->_print( title => 'dtstart ' . join ( ':', %parm ) ) if $DEBUG;
+    $self->trace( title => 'dtstart ' . join ( ':', %parm ) );
     my $dt = $self->copy;
     $dt->{dtstart} = $parm{start};
     # print " dtstart $self->{dtstart}\n";
@@ -1053,7 +1054,7 @@ sub recur_by_rule {
         }
         $last_p = $p;
     }
-    print "\nRECUR_BY_RULE ",join(":",@_),"\n" if $DEBUG;
+    $self->trace( title => "recur_by_rule" );   # ".join(":",@_) );
 
     my %parm = (
         # FREQ     => 'YEARLY',  # whatever
@@ -1226,6 +1227,9 @@ sub recur_by_rule {
             # else {
             #    # warn "failed: 'first' $size";
             # }
+        }
+        else {
+            $b->{first} = [ $b->new(-$inf), $b->copy ];
         }
 
 
@@ -1555,6 +1559,7 @@ sub _rrule_by {
             # reuse "base" since we already know it from FREQ
             # -- iterate through parameters
             $indexed = $NEVER;
+            # $DEBUG = 1;
             foreach (@indexed_byday) {
                 # parse parameters
                 my ( $index, $day ) = /([\-\+]?\d+)(\w\w)/;
@@ -1562,7 +1567,8 @@ sub _rrule_by {
                 $index-- if $index > 0;   # perl index starts in 0 instead of 1
                 $day = $WEEKDAY{$day};
                 # print " [Indexed BYDAY: $index $day ]\n" if $DEBUG;
-                my $weekday = $base->offset( 
+                ## my $weekday = $base->offset( 
+                my $weekday = $BYDAY->offset(
                     mode => 'offset', 
                     unit => 'weekdays', 
                     value => [ $day, $day ] );
@@ -1588,6 +1594,7 @@ sub _rrule_by {
 
         $has{months} = 1;
         $has{days}   = 1;
+        # $DEBUG = 0;
     }    # end: BYDAY
     # }}}
 

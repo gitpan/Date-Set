@@ -911,5 +911,24 @@ $title="***  changing only WKST from MO to SU, yields different results...  ***"
 	is( "" . $a->recur_by_date( list => ['19970817Z', '19970831Z'] ) ,
 		'19970805T090000Z,19970817Z,19970817T090000Z,19970819T090000Z,19970831Z,19970831T090000Z', "***  RDATE adding 2 days  ***" );
 
+# $Set::Infinite::PRETTY_PRINT = 1;
+# $Set::Infinite::TRACE = 1;
+
+$a = Date::Set->event(
+    dtstart => '19700329T020000Z',
+    rule => 'FREQ=MONTHLY;BYMONTH=3;BYDAY=-3SU',
+    start=>'20030101T000000Z', end=>'20050101T000000Z' );
+is ( "". $a ,
+  '20030316T020000Z,20040314T020000Z',
+  'BYDAY works well with FREQ=MONTH' );
+
+$a = Date::Set->event(
+    dtstart => '19700329T020000Z',
+    rule => 'FREQ=YEARLY;BYMONTH=3;BYDAY=-3SU',
+    start=> '20030101T000000Z', end=>'20050101T000000Z' );
+is ( "". $a ,
+  '20030316T020000Z,20040314T020000Z',
+  'BYDAY works well with FREQ=YEARLY;BYMONTH' );
+
 
 1;
