@@ -20,15 +20,18 @@ use AutoLoader;
 use Carp;
 @ISA       = qw(Set::Infinite);
 @EXPORT    = qw();
-@EXPORT_OK = qw(type $inf inf);
-$VERSION = (qw'$Revision: 1.25 $')[1];
+@EXPORT_OK = qw( $inf inf );
+$VERSION = (qw'$Revision: 1.25_03 $')[1];
 
 
 #----- initialize package globals
 
 $DEBUG                = 0;
 $Set::Infinite::TRACE = 0;
-Set::Infinite::type('Date::Set::ICal');
+
+my $Type;
+Date::Set->type('Date::Set::ICal');
+
 $inf = 10**10**10;
 sub inf { $inf }
 
@@ -55,13 +58,34 @@ $NEVER   = __PACKAGE__->new();
 
 #----- end: initialize package globals
 
+# override type() to use our default value --> $Type
+
+sub type {
+    # warn "Date::Set type: $_[-1]";
+    my $self = shift;
+    unless (@_) {
+        return ref($self) ? $self->{type} : $Type;
+    }
+    my $tmp_type = shift;
+    eval "use " . $tmp_type;
+    carp "Warning: can't start $tmp_type : $@" if $@;
+    if (ref($self))  {
+        $self->{type} = $tmp_type;
+        return $self;
+    }
+    else {
+        $Type = $tmp_type;
+        return $Type;
+    }
+}
+
 #----- our special version of new()
 # propagates dtstart 
 
 sub new {
     my $class = shift;
-    my $self = Set::Infinite->new(@_);
-    bless $self, __PACKAGE__;
+    my $self = $class->SUPER::new(@_);
+    bless $self, ( ref($class) || $class );
     # print " new ";
     $self->{dtstart} = ref($class) ? $class->{dtstart} : undef;
     $self->{wkst} =    ref($class) ? $class->{wkst}    : $WKST;
@@ -1883,6 +1907,21 @@ sub DESTROY {}
 # currently defined are:
 #   next_XXX  (next_day, next_month ...), this_XXX,  prev_XXX
 
+# This is experimental code, originally developed for DateTime::Set:
+#
+# If I can't do something, I check if the first 'leaf' can do it.
+# For example:
+#   $set_10 = $set->add( seconds => 10 );
+# is a shortcut to:
+#   $set_10 = $set->new( $set->min->add( seconds => 10 ) );
+#
+
+my %Is_Leaf_Subroutine = (
+    add => 1,
+    # clone() is a function
+    # ical() is a function
+);
+
 sub AUTOLOAD {
 
     no strict 'refs';
@@ -1925,6 +1964,40 @@ sub AUTOLOAD {
             goto &$sub;
 
         }
+        # ok, so we fell through.
+        # let's see if this is a Date::ICal method
+
+        # my $sub = $1;
+        my $self = shift;
+        my $leaf = $self->min;  # get first leaf
+
+        # get over the memoization
+        $leaf = $leaf->date_ical if UNIVERSAL::can( $leaf, 'date_ical');
+        # warn "leaf is a '". ref( $leaf ) . "'";
+
+        # warn "leaf value is ". $leaf->ical ." is a '". ref( $leaf ). "' sub is '". $sub. "' param @_";
+        if ( UNIVERSAL::can( $leaf, $sub ) ) {
+            # we have different calling modes in leaf class - that's bad.
+            if (exists $Is_Leaf_Subroutine{$sub} ) {
+                # calling mode is 'subroutine'
+                $leaf = $leaf->clone;
+                $leaf->$sub(@_);
+                # warn "sub result is ". $leaf->ical ." ";
+            }
+            else {
+                # calling mode is 'function'
+                $leaf = $leaf->$sub(@_);
+                # warn "function result is ". $leaf;
+            }
+            # warn "result is a '". ref( $leaf ) . "'";
+            $leaf = $self->new($leaf) if ref($leaf) eq 'Date::ICal';
+            return $leaf;
+        }
+
+        # end Date::ICal interface
+
+        Carp::croak( __PACKAGE__ . $AUTOLOAD . " is malformed in AUTOLOAD" );
+
     } else {
         Carp::croak( __PACKAGE__ . $AUTOLOAD . " is malformed in AUTOLOAD" );
     }

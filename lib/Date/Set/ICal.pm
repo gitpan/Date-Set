@@ -25,7 +25,10 @@ package Date::Set::ICal;
 use strict;
 use warnings;
 use Carp;
-use vars qw(@ISA @EXPORT @EXPORT_OK %NEW_CACHE $DEBUG $VERSION $inf);
+use AutoLoader;
+use vars qw(
+    @ISA @EXPORT @EXPORT_OK %NEW_CACHE $DEBUG $VERSION $inf $AUTOLOAD 
+);
 $DEBUG = 0;
 # @ISA = qw(Date::ICal);
 @EXPORT = qw();
@@ -157,6 +160,59 @@ sub date_ical {
     return $self->{ical};
 }
 
+
+# define DESTROY so we don't call AUTOLOAD
+sub DESTROY {}
+
+# This is experimental code, originally developed for DateTime::Set:
+#
+# If I can't do something, I check if the first 'leaf' can do it.
+# For example:
+#   $set_10 = $set->add( seconds => 10 );
+# is a shortcut to:
+#   $set_10 = $set->new( $set->min->add( seconds => 10 ) );
+#
+
+my %Is_Leaf_Subroutine = (
+    add => 1,
+    # clone() is a function
+    # ical() is a function
+);
+sub AUTOLOAD {
+    if ( $AUTOLOAD =~ /.*::(.*?)$/ ) {
+        my $sub = $1;
+        my $self = shift;
+        my $leaf = $self->date_ical; 
+
+        # warn "D::S::ICal: leaf is a '". ref( $leaf ) . "'";
+
+        # warn "leaf value is ". $leaf->ical ." is a '". ref( $leaf ). "' sub is '". $sub. "' param @_";
+        if ( UNIVERSAL::can( $leaf, $sub ) ) {
+            # we have different calling modes in leaf class - that's bad.
+            if (exists $Is_Leaf_Subroutine{$sub} ) {
+                # calling mode is 'subroutine'
+                $leaf = $leaf->clone;
+                $leaf->$sub(@_);
+                # warn "D::S::ICal: sub result is ". $leaf->ical ." ";
+            }
+            else {
+                # calling mode is 'function'
+                $leaf = $leaf->$sub(@_);
+                # warn "D::S::ICal: function result is ". $leaf;
+            }
+            # warn "D::S::ICal: result is a '". ref( $leaf ) . "'";
+            $leaf = $self->new($leaf) if ref($leaf) eq 'Date::ICal';
+            return $leaf;
+        }
+        Carp::croak( __PACKAGE__ . $AUTOLOAD . " is malformed in AUTOLOAD" );
+    }
+    else {
+        Carp::croak( __PACKAGE__ . $AUTOLOAD . " is malformed in AUTOLOAD" );
+    }
+    # warn "no autoloading for $AUTOLOAD";
+}
+
+
 =head1 AUTHOR
 
     Flavio Soibelmann Glock <fglock@pucrs.br>
@@ -164,3 +220,6 @@ sub date_ical {
 =cut
 
 1;
+
+__END__
+

@@ -1,5 +1,12 @@
 Revision history for Perl extension Date::Set.
 
+1.25_03
+    Fixes type() inheritance from Set::Infinite
+    fixed t/ical.t
+
+1.25_01
+    Date::Set::ICal 'inherits' Date::ICal
+
 1.24_20
     dtstart() accepts a Date::Set as parameter
 

@@ -55,7 +55,7 @@ is( join (" ", $a->quantize(unit=>"weeks")->compact ) ,
 
 # "This event happens from 13:00 to 14:00 every Tuesday, unless that Tuesday is the 15th of the month."
 
-my $interval = Set::Infinite->new('20010501Z')->quantize(unit=>'months');
+my $interval = Date::Set->new('20010501Z')->quantize(unit=>'months');
 # print "Weeks: ", $interval->quantize(unit=>'weeks'), "\n";
 my $tuesdays = $interval->quantize(unit=>'weeks')->
 	offset( mode => 'begin', unit=>'days', value => [ 2 , 3 ] );
