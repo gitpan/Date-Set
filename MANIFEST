@@ -11,4 +11,5 @@ eg/recurring.pl
 
 t/ical.t
 t/recurr.t
+t/rfc2445.t
 

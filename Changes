@@ -1,5 +1,18 @@
 Revision history for Perl extension Date::Set.
 
+	added t/rfc2445.t
+	rrule rewritten
+	added 'period' and DTSTART parameters to rrule
+
+	added rdate, exdate
+	added exrule
+	added dtend
+
+	rrule creates 'start times' instead of sets (that is, duration = 0)
+
+0.03 .. 0.05 
+	bugfixes
+
 0.02
 	changed pod - 'dtstart' is not a constructor
 	new: t/recurr.t (unfinished)

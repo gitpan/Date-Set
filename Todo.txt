@@ -1,41 +1,28 @@
-TODO - Date-Set version 0.02 
+TODO - Date-Set version 0.05 up
 
-PERIOD
-
-	should period be open-ended?
 
 RRULE
 
-	does UNTIL => '19970103Z' mean until 19970103T000000Z or 19970103T235959Z ?
-	current version (0.02) uses 19970103T000000Z.
+	should not backtrack if it can solve the problem using UNTIL or COUNT
 
 	BYWEEKNO / WKST
 	test bysetpos
-	check behaviour when mixing rule parts (BYWEEKNO + BYYEARDAY);
-	-- see end of 4.3.10 in RFC2445
-	where do DTSTART", "DTEND", "DUE", "EXDATE" and "RDATE" belong?
-	better DURATION
-	TZID
 
-	This looks wrong - is it?
-	   "FREQ=YEARLY;BYMONTH=1,2" increases the number of days within the
-	   yearly recurrence set from 1 (if BYMONTH tag is not present) to 2.
+	where do "DUE" belong?
+
+	TZ ?
 
 SYNTAX
 
-	remove iterate ?
 	'iterate' options 'no-sort', 'no-merge', 'keep-null' ...
 
 	sort by[] -- 0 1 2 ... freq-3 freq-2 freq-1
 
 	ical.pl: enter data as epoch; translate on exit.
-	use DTSTART as default hour, minute, ...
 
 	extra: wrappers (like: weekday('thursday') )
 	some tough cases: yearweek(10) monthweek(2)
 	-- partly done: ICalSet.pm
-
-	check: RFC2445 support completeness
 
 	'select' switch for negative-index overflow behaviour (end of subset, or end of freq)
 	tests: add test for negative 'by'
@@ -70,8 +57,6 @@ SYNTAX
 TESTS
 
 	test fractional seconds
-
-	recurr.t - finish FREQ, INTERVAL, COUNT, occurrences
 
 DOCUMENTATION
 
