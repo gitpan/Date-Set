@@ -6,7 +6,11 @@ WriteMakefile(
     'NAME'      		=> 'Date::Set',
     'VERSION_FROM'  	=> 'lib/Date/Set.pm', 
     'EXCLUDE_EXT'       => 'Makefile gz LOG',
-    'PREREQ_PM'         => { 'Set::Infinite' => 0.31, Date::ICal },
+    'PREREQ_PM'         => {    'Set::Infinite' => 0.31, 
+                                'Date::ICal' => 1.46,
+                                'Test::Harness'         => '1.23',  # we use todo tests
+                                'Test::More'            => '0.31',      
+                            },
     'dist'          	=> { 'COMPRESS' => 'gzip' },
 );
 

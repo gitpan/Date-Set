@@ -1,4 +1,4 @@
-#/bin/perl
+#!/bin/perl
 # Copyright (c) 2001 Flavio Soibelmann Glock. All rights reserved.
 # This program is free software; you can redistribute it and/or
 # modify it under the same terms as Perl itself.
@@ -16,7 +16,42 @@ use vars qw(@ISA @EXPORT @EXPORT_OK $VERSION $DEBUG
 @ISA = qw(Set::Infinite);
 @EXPORT = qw();
 @EXPORT_OK = qw(type);
-$VERSION = '0.03';
+$VERSION = (qw'$Revision: 1.4 $')[1];
+
+=head1 NAME
+
+Date::Set - Date set math
+
+=head1 SYNOPSIS
+
+	use Date::Set;
+
+	my $interval = Date::Set->new('20010501')->quantize(unit=>'months');
+	print "This month: ", $interval, "\n\n";
+	print "Weeks this month: ", $interval->quantize(unit=>'weeks'), "\n\n";
+	print "Tuesdays this month: ", $interval->quantize(unit=>'weeks')->
+	    offset( mode => 'begin', unit=>'days', value => [ 2, 3] );
+
+    # TODO: add some examples of RRULE syntax.
+    #
+     
+=head1 DESCRIPTION
+
+Date::Set is a module for date/time sets. It allows you to generate
+groups of dates, like "every Wednesday", and then find all the dates
+matching that pattern. It waits until you ask for a particular
+recurrence before calculating it.
+
+If you want to understand the context of this module, look at
+IETF RFC 2445 (iCalendar), which specifies a particular syntax for
+describing recurring events. 
+
+It requires Date::ICal and Set::Infinite. 
+If you don't need iCalendar functionality, use Set::Infinite instead.
+
+=head1 METHODS
+
+=cut
 
 $DEBUG = 0;
 $Set::Infinite::TRACE = 0;
@@ -27,6 +62,17 @@ $future  = &inf;
 $past    = -&inf;   
 $forever = __PACKAGE__->new($past, $future);
 
+
+=head2 event
+
+	event()
+
+Constructor. Returns 'forever', that is: (-Inf .. Inf). If you use this method,
+*must* limit the event by calling dtstart() to set a starting date for the
+event. 
+
+=cut
+
 sub event   { $forever }
 
 sub print {
@@ -34,6 +80,16 @@ sub print {
 	print "\n $parm{title} = ",$self,"\n" if $DEBUG;
 	return $self;
 }
+
+
+=head2 period
+
+	period( time => [time1, time2] )
+
+Another constructor. Returns "[time1 .. time2]" when
+called in a scalar context.
+
+=cut
 
 sub period { # time[]
 	my ($class, %parm) = @_;
@@ -43,6 +99,19 @@ sub period { # time[]
 	return $self;
 }
 
+
+=head2 dtstart
+
+	dtstart( start => time1 )
+
+Returns set intersection [time1 .. Inf)
+
+'dtstart' puts a limit on when the event starts. 
+If the event already starts AFTER dtstart, it will not change.
+
+=cut
+
+
 sub dtstart { # start
 	my ($self, %parm) = @_;
 	$self->print(title=>'dtstart ' . join(':', %parm) );
@@ -50,6 +119,16 @@ sub dtstart { # start
 	# my $tmp = __PACKAGE__->new($parm{start}, $future);
 	# return $self->intersection($tmp);
 }
+
+=head2 duration
+
+	duration( unit => months, duration => 10 )
+
+All intervals for the quantize function are modified to 'duration'.
+
+'unit' parameter can be years, months, days, weeks, hours, minutes, or seconds.
+
+=cut
 
 sub duration { # unit,duration
 	my ($self, %parm) = @_;
@@ -59,6 +138,29 @@ sub duration { # unit,duration
 
 %freq = qw(SECONDLY seconds MINUTELY minutes HOURLY hours DAILY days WEEKLY weeks MONTHLY months YEARLY years);
 %weekday = qw( SU 0 MO 1 TU 2 WE 3 TH 4 FR 5 SA 6 );
+
+=head2 rrule
+
+    rrule ( BYMONTH => [ list ], BYWEEKNO => [ list ],
+        BYYEARDAY => [ list ],   BYMONTHDAY => [ list ],
+        BYDAY => [ list ],       BYHOUR => [ list ],
+        BYMINUTE => [ list ],    BYSECOND => [ list ],
+        BYSETPOS => [ list ],
+        UNTIL => time, FREQ => freq, INTERVAL => n, COUNT => n,
+		WKST => day )
+
+Implements RRULE from RFC2445. 
+
+FREQ can be: SECONDLY MINUTELY HOURLY DAILY WEEKLY MONTHLY or YEARLY
+
+WKST and BYDAY list may contain: SU MO TU WE TH FR SA
+
+BYxxx items must be array references (must be bracketed): BYMONTH => [ 10 ] or
+BYMONTH => [ 10, 11, 12 ] or BYMONTH => [ qw(10 11 12) ]
+
+(some documentation needed!)
+
+=cut
 
 sub rrule { # freq, &method(); optional: interval, until, count
 	# TODO: count, interval
@@ -231,6 +333,15 @@ sub rrule { # freq, &method(); optional: interval, until, count
 	return $rrule;
 }
 
+=head2 occurrences
+
+	occurrences( period => date-set )
+
+Returns the occurrences for a given period. In other words,
+"when does this event occur during the given period?"
+
+=cut
+
 sub occurrences { # event->, period 
 	my ($self, %parm) = @_;
 	return $self->intersection($parm{period});
@@ -240,87 +351,6 @@ sub occurrences { # event->, period
 1;
 
 __END__
-
-=head1 NAME
-
-Date::Set - Date set math
-
-=head1 SYNOPSIS
-
-	use Date::Set;
-
-	my $interval = Date::Set->new('20010501')->quantize(unit=>'months');
-	print "This month: ", $interval, "\n\n";
-	print "Weeks this month: ", $interval->quantize(unit=>'weeks'), "\n\n";
-	print "Tuesdays this month: ", $interval->quantize(unit=>'weeks')->
-	    offset( mode => 'begin', unit=>'days', value => [ 2, 3] );
-
-=head1 DESCRIPTION
-
-Date::Set is a module for date/time sets. 
-
-It requires Date::ICal. 
-If you don't need ICal functionality, 
-use Set::Infinite instead.
-
-=head1 METHODS
-
-=head2 event
-
-	event()
-
-Constructor. Returns 'forever', that is: (-Inf .. Inf)
-
-=head2 period
-
-	period( time => [time1, time2] )
-
-Another constructor. Returns [time1 .. time2]
-
-=head2 dtstart
-
-	dtstart( start => time1 )
-
-Returns set intersection [time1 .. Inf)
-
-'dtstart' puts a limit when the event starts. 
-If the event already starts AFTER dtstart, it will not change.
-
-=head2 duration
-
-	duration( unit => months, duration => 10 )
-
-All intervals are modified to 'duration'.
-
-'unit' parameter can be years, months, days, weeks, hours, minutes, or seconds.
-
-=head2 rrule
-
-    rrule ( BYMONTH => [ list ], BYWEEKNO => [ list ],
-        BYYEARDAY => [ list ],   BYMONTHDAY => [ list ],
-        BYDAY => [ list ],       BYHOUR => [ list ],
-        BYMINUTE => [ list ],    BYSECOND => [ list ],
-        BYSETPOS => [ list ],
-        UNTIL => time, FREQ => freq, INTERVAL => n, COUNT => n,
-		WKST => day )
-
-Implements RRULE from RFC2445. 
-
-FREQ can be: SECONDLY MINUTELY HOURLY DAILY WEEKLY MONTHLY or YEARLY
-
-WKST and BYDAY list may contain: SU MO TU WE TH FR SA
-
-BYxxx items must be array references (must be bracketed): BYMONTH => [ 10 ] or
-BYMONTH => [ 10, 11, 12 ] or BYMONTH => [ qw(10 11 12) ]
-
-(some documentation needed!)
-
-=head2 occurrences
-
-	occurrences( period => date-set )
-
-Returns the occurrences for a given period.
-
 
 =head1 INHERITED METHODS 
 
@@ -337,54 +367,13 @@ These methods are inherited from Set::Infinite.
     $i = $a->union($b);     
     $i = $a->intersection($b);
     $i = $a->complement;
-    $i = $a->complement($b);
-    $i = $a->span;   
-
-=head2 Scalar  
-
-    $i = $a->min;
-    $i = $a->max;
-    $i = $a->size;  
-
-=head2 Other set methods
-
-    $a->real;
-    $a->integer;
-
-    quantize( parameters )
-	    Makes equal-sized subsets.
-
-    select( parameters )
-
-    	Selects set members based on their ordered positions.
-    	Selection is more useful after quantization.
-
-    	freq     - default=1
-    	by       - default=[0]
-    	interval - default=1
-    	count    - dafault=infinite
-
-    offset ( parameters )
-
-    	Offsets the subsets.
-
-    	value   - default=[0,0]
-    	mode    - default='offset'. Possible values are: 'offset', 'begin', 'end'.
-
-    type($i)
-
-    	chooses an object data type. 
-
-    	type('Set::Infinite::Date');
-
-    tolerance(0)    defaults to real sets (default)
-    tolerance(1)    defaults to integer sets
-
 Note: 'unit' parameter can be years, months, days, weeks, hours, minutes, or seconds.  
+
+=cut
 
 =head1 BUGS
 
-'rrule' method is not yet full RFC2445 compliant.
+'rrule' method is not yet fully RFC2445 compliant.
 
 'byday' does not understand (scalar . string) formats yet (like '-2FR')
 
