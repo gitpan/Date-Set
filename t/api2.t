@@ -214,7 +214,7 @@ $title = "event rule + start + end";
 
 $title = "event rule + at";
     $a = Date::Set->event( 
-        at => [['19990101Z','19970902T090000Z']],
+        at => [['19970902T090000Z','19990101Z']],
         rule  => 'FREQ=DAILY;COUNT=10' );
     is("$a", 
         '19970902T090000Z,19970903Z,19970904Z,19970905Z,' .

@@ -1,5 +1,9 @@
 Revision history for Perl extension Date::Set.
 
+1.30  2004-04-15
+    - Clear a few warnings in tests
+    - Fixed test "event rule + at" in file "t/api2.t". Reported by Boyd Duffee
+
 1.29
     runs under S::I 0.5302
     - does not use "select( freq => x )" 

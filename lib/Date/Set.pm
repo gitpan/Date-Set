@@ -21,7 +21,7 @@ use Carp;
 @ISA       = qw(Set::Infinite);
 @EXPORT    = qw();
 @EXPORT_OK = qw( $inf inf );
-$VERSION =  1.29;
+$VERSION =  "1.30";
 
 
 #----- initialize package globals
@@ -1297,7 +1297,7 @@ sub recur_by_rule {
 
         $when->_print( title => 'FREQ' ) if $DEBUG;
 
-        if ( $self->max == $inf ) {
+        if ( defined $self->max && $self->max == $inf ) {
 
             # TODO
             # that's real hard to quantize -- try to fix it
