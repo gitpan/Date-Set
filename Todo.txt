@@ -1,6 +1,10 @@
 Date-Set TODO 
 (Some items apply to Set::Infinite)
 
+    make better examples
+
+    test new() with Date::ICal objects
+
     DONE: first() should work for recur_by_rule - use same algorithm as select()
 
     DONE: make first work with during() and other "intersections" - tests fail in t/recurr.t

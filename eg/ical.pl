@@ -17,13 +17,13 @@ my $c = '20010101T100000Z';
 #-------------------------
 
 my ($event, $vperiod);
-$vperiod = Date::Set::period( time=>[$a,$b] );
+$vperiod = Date::Set->period( time=>[$a,$b] );
 print "period: $vperiod\n";
 
 # ---- direct syntax ----
 
 my $occurrences = $vperiod->
-	rrule( FREQ=>'WEEKLY', COUNT=>2, 
+	recur_by_rule( FREQ=>'WEEKLY', COUNT=>2, 
 		BYMONTH => [9,10],
 		# BYWEEKNO => [40,41],
 		# BYYEARDAY => [-65],
@@ -36,7 +36,7 @@ print "occurrences: $occurrences \n";
 
 # ---- functional syntax ----
 
-$event = Date::Set::rrule( FREQ=>'WEEKLY', COUNT=>2, 
+$event = Date::Set->recur_by_rule( FREQ=>'WEEKLY', COUNT=>2, 
 		BYMONTH => [9,10],
 	);
 print "occurrences: ", $event->occurrences( period => $vperiod)," \n";

@@ -21,7 +21,7 @@ use Carp;
 @ISA       = qw(Set::Infinite);
 @EXPORT    = qw();
 @EXPORT_OK = qw(type $inf inf);
-$VERSION = (qw'$Revision: 1.24_16 $')[1];
+$VERSION = (qw'$Revision: 1.24_17 $')[1];
 
 
 #----- initialize package globals
@@ -998,7 +998,7 @@ __internal_docs__
 
 sub rrule {
     my $self = shift;
-    carp ref $self . "->rrule deprecated in favor of recur_by_rule";
+    # carp ref $self . "->rrule deprecated in favor of recur_by_rule";
     return ( $self->recur_by_rule(@_) );
 }
 

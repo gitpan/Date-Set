@@ -1,5 +1,9 @@
 Revision history for Perl extension Date::Set.
 
+1.24_17
+    fixed eg/*
+    requires Set::Infinite 0.38 so that it gets correctly tested by CPAN
+
 1.24_15
     new() accepts Date::ICal objects
 
