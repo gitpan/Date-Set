@@ -1,12 +1,13 @@
-TODO - Date-Set version 0.05 up
+Date-Set TODO 
+(Some items apply to Set::Infinite)
 
+EXCLUDE
+
+    exclude might have problems applying an unbounded recurrence to another unbounded recurrence
 
 RRULE
 
-	should not backtrack if it can solve the problem using UNTIL or COUNT
-
-	BYWEEKNO / WKST
-	test bysetpos
+	should not backtrack if it can solve the problem using COUNT
 
 	where do "DUE" belong?
 
@@ -15,10 +16,6 @@ RRULE
 SYNTAX
 
 	'iterate' options 'no-sort', 'no-merge', 'keep-null' ...
-
-	sort by[] -- 0 1 2 ... freq-3 freq-2 freq-1
-
-	ical.pl: enter data as epoch; translate on exit.
 
 	extra: wrappers (like: weekday('thursday') )
 	some tough cases: yearweek(10) monthweek(2)
@@ -60,14 +57,9 @@ TESTS
 
 DOCUMENTATION
 
-	check: POD formatting 
-
-	verify, document parameter syntax everywhere
-
 	document:
 		new method 'compact'
 		offset option 'mode=>circle'
-		new method 'list'
 		iterate
 		no_cleanup
 
@@ -76,10 +68,6 @@ DOCUMENTATION
 	document: quantize extensibility through hash-subs
 
 CACHEING
-
-	cache quantize by month/day/...
-	-- doesn't work if 'quant' is changed
-	-- doesn't check 'intersects'
 
 	make a 'flush'-cache method. Make a 'cache-registry'.
 
@@ -99,9 +87,9 @@ OTHER
 	oo: provide a general filter "install" mechanism (quantize, select, etc)
 	check: cleanup "type" hack
 
-	extra: syntax for quantize: ...->quantize('years')
-
 	old: Make a global mode for `open_*' 
 
 	old: Quantize_Date should care of daylight savings time
+
+
 

@@ -2,125 +2,801 @@ NAME
     Date::Set - Date set math
 
 SYNOPSIS
-            use Date::Set;
+        use Date::Set;
 
-            my $interval = Date::Set->new('20010501')->quantize(unit=>'months');
-            print "This month: ", $interval, "\n\n";
-            print "Weeks this month: ", $interval->quantize(unit=>'weeks'), "\n\n";
-            print "Tuesdays this month: ", $interval->quantize(unit=>'weeks')->
-                offset( mode => 'begin', unit=>'days', value => [ 2, 3] );
+        $a = Date::Set->event( at => '20020311' );      # 20020311
+        $a->event( at => [ '20020312', '20020313' ] );  # 20020311,20020312,20020313
+        $a->exclude( at => '20020312' );                # 20020311,20020313
 
 DESCRIPTION
-    Date::Set is a module for date/time sets.
+    Date::Set is a module for date/time sets. It allows you to generate
+    groups of dates, like "every wednesday", and then find all the dates
+    matching that pattern.
 
-    It requires Date::ICal. If you don't need ICal functionality, use
-    Set::Infinite instead.
+    This module is part of the Reefknot project http://reefknot.sf.net
 
-METHODS
-  event
+    It requires Date::ICal and Set::Infinite.
 
-            event()
+  Limitations
 
-    Constructor. Returns 'forever', that is: (-Inf .. Inf)
+    THIS IS PRELIMINARY INFORMATION. This API may change. Everything in 'OLD
+    API' section is safe to use, but might get deprecated.
 
+    Some internal operations still use the system's 'time' functions and are
+    limited by epoch issues (no support for years outside the 1970-2038
+    range).
+
+    Date::Set does not implement timezones yet. All dates are in UTC.
+
+    Date::ICal durations are not supported yet.
+
+  IETF RFC 2445 (iCalendar)
+
+    If you want to understand the context of this module, look at IETF RFC
+    2445 (iCalendar). It specifies the syntax for describing recurring
+    events.
+
+    If you don't need iCalendar functionality, you may try to use
+    Set::Infinite directly. Most of Date::Set is syntactic sugar for
+    Set::Infinite functions.
+
+    RFC2445 can be obtained for free at http://www.ietf.org/rfc/rfc2445.txt
+
+  ISO 8601 week
+
+    We use the words 'weekyear' and 'year' with special meanings.
+
+    'year' is a period beginning in january first, ending in december 31.
+
+    'weekyear' is the year, beginning in 'first week of year' and ending in
+    'last week of year'. This year break is somewhere in late-december or
+    begin-january, and it is NOT equal to 'first day of january'.
+
+    However, 'first monday of year' is 'first monday of january'. It is not
+    'first monday of first week'.
+
+    ISO8601 cannot be obtained for free, as far as I know.
+
+  What's a Date Set
+
+    A Date Set is a collection of Dates.
+
+    Date::ICal module defines what a 'date' is. Set::Infinite module defines
+    what a 'set' is. This module puts them together.
+
+    This module accepts both Date::ICal objects or string dates.
+
+    These are Date Sets:
+
+        ''                                          # empty
+
+        '19971024T120000Z'                          # one date
+
+        '19971024T120000Z', '19971025T120000Z'      # two dates
+
+  Period
+
+    A Date Set period is an infinite set: you can't count how many single
+    dates are there inside the set, because it is 'continuous':
+
+        '19971024T120000Z' ... '19971025T120000Z'   # all dates between days 24 and 25
+
+        '19971024T120000Z' ... 'infinity'           # all dates after day 24
+
+    A Date Set can have more date periods:
+
+        '19971024T120000Z' ... '19971025T120000Z',  # all dates between days 24
+        '19971124T120000Z' ... '19971125T120000Z'   # and 25, in october and in november
+
+  Recurrence
+
+    Sometimes a Date::Set have an infinity number of periods. This is what
+    happen when you have a 'recurrence'.
+
+    A recurrence is created by a 'recurrence rule':
+
+        $recurr = Date::Set->event( rule = 'FREQ=YEARLY' );   # all possible years
+
+    An unbounded recurrence like this cannot be printed. It would take an
+    infinitely long roll of paper.
+
+        print $recurr;  # "Too Complex"  
+
+    You can limit a recurrence into a more useful period of time:
+
+        $a->event( rule => 'FREQ=YEARLY;INTERVAL=2' );
+        $a->during( start => $today, end => $year_2020 );
+
+    The program waits until you ask for a particular recurrence before
+    calculating it. This is implemented by module Set::Infinite, and it is
+    based on 'functional programming'. If you are interested on how this
+    works, take a look at Set::Infinite.
+
+  Encapsulation
+
+    Object-oriented programmers are told not to modify an object's data
+    directly, and to use the object's methods instead.
+
+    For most objects you don't see any difference, but for Date::Set
+    objects, changing the internal data might break your program:
+
+    - there are many internal formats/states for Date::Set objects, that are
+    translated by the API at run-time (this behaviour is inherited from
+    Set::Infinite). You must be sure what your object state will be. In
+    other words, you might be asking for data that does not exist yet.
+
+    - due to optimizations, modifying an object's internal data might break
+    some function's results, since you might get a pointer into the
+    memoization cache. In other words, two different objects might be
+    sharing the same data.
+
+  Open and closed intervals
+
+    If we used integer arithmetic only, then the interval
+
+        '20010101T000000' < date < '20020501T000000' 
+
+    could be written [ '20010101T000001' .. '20020430T235959' ].
+
+    This method doesn't work well for real numbers, so we use the 'open' and
+    'closed' interval notation:
+
+    A closed interval is an interval which includes its limit points. It is
+    written with square brackets.
+
+        [ '20010101' .. '20020501' ]    # '20010101' <= date <= '20020501'
+
+    If you remove '20020501' from the interval, you get a half-open
+    interval. The open side is written with parenthesis.
+
+        [ '20010101' .. '20020501' )    # '20010101' <= date < '20020501'
+
+    If you remove '20010101' and '20020501' from the interval, you get an
+    open interval.
+
+        ( '20010101' .. '20020501' )    # '20010101' < date < '20020501'
+
+"NEW" API
+SUBROUTINE METHODS
+    These methods perform everything as side-effects to the object's data
+    structures. They return the object itself, modified.
+
+  event HASH
+
+        $a->event ( rule => $rule );
+        $a->event ( at => $date );
+        $a->event ( start => $start, end => $end );
+
+        $a = Date::Set->event ( at => $date );    # constructor
+
+    Timeline diagram to explain 'event' effect
+         parameter contents:
+
+            $a = .........[**************]...................   # period
+            $b = ................[****************]..........   # period
+            $c = ............................[***********]...   # period
+
+         $a->event( at => $b )
+
+            $a = .........[***********************]..........   # bigger period
+
+         $a->event( at => $c )
+
+            $a = .........[**************]...[***********]...   # two periods
+
+    Inserts events in a Date::Set. Use 'event' to create or enlarge a Set.
+
+    Calling 'event' without parameters returns 'forever', that is: (-Inf ..
+    Inf)
+
+    rule
+        adds the dates from a recurrence rule, as defined in RFC2445.
+
+        This is a simple list of dates. These dates are not 'periods', they
+        have no duration.
+
+            $a->event( rule => 'FREQ=YEARLY;INTERVAL=2;COUNT=10;BYMONTH=1,2,3' );
+
+        Optimization tip: rules that have start/end dates might execute
+        faster.
+
+    at  adds more dates or periods to the set
+
+            $a->event( at => '19971024T120000Z' );      # one event
+
+            $a->event( at => [ '19971024T120000Z', 
+                               '19971025T120000Z' ] );  # two dates (not a period)
+
+            $a->event( at => $set );                    # one Date::Set
+
+            $a->event( at => [ $set1, $set2 ] );        # two Date::Sets
+
+            $a->event( at => [ [ '19971024T120000Z', '19971025T120000Z' ] ] );  # one period
+
+            $a->event( at => [ [ '19971024T120000Z', '19971025T120000Z' ],
+                               [ '19971027T120000Z', '19971028T120000Z' ] ] );  # two periods
+
+        If 'rule' is used together with 'at' it will add the recurring
+        events that are inside that period only. The period is a 'boundary':
+
+            $a->event( rule  => 'FREQ=YEARLY',
+                       at    => [ [ '20010101', '20030101' ] ] );    # 2001, 2002, 2003
+
+    start, end
+        add a time period to the set:
+
+            $a->event( start => '19971024T120000Z' );  # one period that goes forever until +infinity
+
+            $a->event( end   => '19971025T120000Z' );  # one period that existed forever since -infinity
+
+            $a->event( start => '19971024T120000Z', 
+                       end   => '19971025T120000Z' );  # one period
+
+        if 'at' is used together with 'start'/'end' it will add the periods
+        that are inside that boundaries only:
+
+            $a->event( at    => [ [ '20010101', '20090101' ] ],
+                       end   => '20020101' );                      # period starting 2001, ending 2002
+
+            $a->event( at    => [ [ '20010101', '20090101' ] ],
+                       start => '20070101' );                      # period starting 2007, ending 2009
+
+        if 'rule' is used together with 'start'/'end' it will add the
+        recurring events that are inside that boundaries only:
+
+            $a->event( rule  => 'FREQ=YEARLY',
+                       start => '20010101', 
+                       end   => '20030101' );                       # 2001, 2002, 2003
+
+        you can mix 'at' and 'start'/'end' boundary effects to 'rule':
+
+            $a->event( rule  => 'FREQ=YEARLY',
+                       at    => [ [ '20010101', '20090101' ] ],
+                       end   => '20020101' );                       # 2001, 2002
+
+    Timeline diagram to explain 'event' effect with bounded recurrence rule
+         parameter contents:
+
+            $a = .........[**************]...................   # period
+            $b = ................[****************]..........   # period
+            $r = ...*...*...*...*...*...*...*...*...*...*...*   # unbounded recurrence rule
+
+         $a->event( rule => $r, at => $b )
+
+            $a = .........[**************]..*...*............   # period and two occurrences
+
+  exclude HASH
+
+  during HASH
+
+        $a->exclude ( at => $date );
+        $a->exclude ( rule => $rule );
+        $a->exclude ( start => $start, end => $end );
+
+        $a->during ( at => $date );
+        $a->during ( rule => $rule );
+        $a->during ( start => $start, end => $end );
+
+    Timeline diagram to explain 'exclude' and 'during' effect
+         parameter contents:
+
+            $a = .........[**************]...................
+            $b = ................[****************]..........
+
+         $a->exclude( at => $b )
+
+            $a = .........[******)...........................
+
+         $a->during( at => $b )
+
+            $a = ................[*******]...................
+
+    Calling 'exclude' or 'during' without parameters returns 'never', that
+    is: () the empty set.
+
+    'exclude' excludes events from a Date::Set
+
+    'during' put start/end boundaries on a Date::Set
+
+    In other words: 'exclude' cuts out everything that MATCH it, and
+    'during' cuts out everything that DON'T match it.
+
+    Use 'exclude' and 'during' to limit a Set size. You can use 'exclude'
+    and 'during' to put boundaries on an infinitely recurring Set.
+
+    at
+            $a->exclude( at => '19971024T120000Z' );
+
+            $a->exclude( at => $set );
+
+            $a->during( at => [ '19971024T120000Z', '19971025T120000Z' ] );  # two dates
+
+            $a->during( at => [ [ '19971024T120000Z', '19971025T120000Z' ] ] );  # a period
+
+            $a->during( at => [ $set1, $set2 ] );
+
+        'exclude at' deletes these dates from the set
+
+        'during at' limits the set to these boundaries only.
+
+    rule
+        a recurrence rule as defined in RFC2445
+
+            $a->exclude( rule => 'FREQ=YEARLY;INTERVAL=2;COUNT=10;BYMONTH=1,2,3' );
+
+            $a->during( rule => $rule1 );
+
+        'exclude rule' deletes from the set all the dates defined by the
+        rule. The RFC 2445 states that the start date will not be excluded
+        by a rule, so it isn't.
+
+        'during rule' limits the set to the dates defined by the rule. If
+        the set does not contain any of the dates, it gets empty
+
+    start, end
+        a time period
+
+            $a->exclude( start => '19971024T120000Z', end => '19971025T120000Z' );
+
+            $a->during( start => '19971024T120000Z' );  # limit to forever from start until +infinity
+
+            $a->exclude( end => '19971025T120000Z' );   # delete everything since -infinity until end
+
+        'exclude start' deletes from the set all dates including 'start' and
+        after it
+
+        'exclude end' deletes from the set all dates before and including
+        'end'
+
+        'exclude start,end' deletes from the set all dates between and
+        including 'start' and 'end'
+
+        'during start' limits the set to the dates including 'start' and
+        after it. If there are no dates after 'start', the set gets empty.
+
+        'during end' limits the set to the dates before and including 'end'.
+        If there are no dates before 'end', the set gets empty.
+
+        'during start,end' limits the set to the dates between and including
+        'start' and 'end'. If there are no dates in that period, the set
+        gets empty.
+
+  wkst STRING
+
+        Date::Set::wkst('SU');
+
+    Sets/reads the module's global "week start day".
+
+    The parameter must be one of 'MO' (default), 'TU', 'WE', 'TH', 'FR',
+    'SA', or 'SU'.
+
+    The effect if to change the 'week' boundaries. It also changes when the
+    first week of year begins, affecting 'weekyear' operations.
+
+    It has no effect on 'weekday' operations, like 'first tuesday of month'
+    or 'last friday of year'.
+
+    Return value is current wkst value.
+
+FUNCTION METHODS
+    These methods perform operations and return the changed data. They
+    return a new object. The original object is never modified.
+
+  fevent, fexclude, fduring HASH
+
+        $b = $a->fevent ( at => $date,
+                          date_set => $set,
+                          rule => $rule,
+                          start => $start, end => $end );
+
+    Functions equivalent to event() , exclude() , and during() subroutines.
+
+    These functions return a new Date::Set. They DON'T MODIFY the object, as
+    the subroutines event/exclude/during do.
+
+        $b = $a->fevent ( at => $date );
+
+    is the same as:
+
+        $b = $a->copy;
+        $b->event ( at => $date );
+
+"OLD" API
   period
 
-            period( time => [time1, time2] )
+    Deprecated. Replaced by 'event'.
 
-    Another constructor. Returns [time1 .. time2]
+        period( time => [time1, time2] )
+
+        or
+
+        period( start => Date::ICal,  end => Date::ICal )
+
+    This routine is a constructor. Returns a time period bounded by the
+    dates specified when called in a scalar context.
 
   dtstart
 
-            dtstart( start => time1 )
+    Deprecated. Replaced by 'event/during'.
 
-    Yet another constructor. Returns [time1 .. Inf)
+        dtstart( start => time1 )
+
+    Returns set intersection [time1 .. Inf)
+
+    'dtstart' puts a limit on when the event starts. If the event already
+    starts AFTER dtstart, it will not change.
+
+  dtend
+
+    Deprecated. Replaced by 'event/during'.
+
+        dtend( end => time1 )
+
+    Returns set intersection (Inf .. time1]
+
+    'dtend' puts a limit on when the event finishes. If the event already
+    finish BEFORE dtend, it will not change.
 
   duration
 
-            duration( unit => months, duration => 10 )
+        duration( unit => 'months', duration => 10 )
 
     All intervals are modified to 'duration'.
 
     'unit' parameter can be years, months, days, weeks, hours, minutes, or
     seconds.
 
-  rrule
+  recur_by_rule
 
-        rrule ( BYMONTH => [ list ], BYWEEKNO => [ list ],
+    Deprecated. Replaced by 'event'.
+
+        recur_by_rule ( period => date-set,  DTSTART => time,
+            BYMONTH => [ list ],     BYWEEKNO => [ list ],
             BYYEARDAY => [ list ],   BYMONTHDAY => [ list ],
             BYDAY => [ list ],       BYHOUR => [ list ],
             BYMINUTE => [ list ],    BYSECOND => [ list ],
             BYSETPOS => [ list ],
-            UNTIL => time, FREQ => freq, INTERVAL => n, COUNT => n )
+            UNTIL => time, FREQ => freq, INTERVAL => n, COUNT => n,
+            WKST => day,
+            RRULE => rrule-string,
+            include_dtstart => 1,
+            exclude_dtstart => 0 )
 
-    Implements RRULE from RFC2445. (some documentation needed!)
+    All parameters may be upper or lower case.
+
+    Implements RRULE from RFC2445.
+
+    FREQ can be: SECONDLY MINUTELY HOURLY DAILY WEEKLY MONTHLY or YEARLY
+
+    WKST and BYDAY list may contain: SU MO TU WE TH FR SA. By default, weeks
+    start on monday (MO)
+
+    BYxxx items must be array references (must be bracketed) if the list has
+    more than one item:
+
+      BYMOHTH => 10                 or
+      BYMONTH => [ 10 ]             or
+      BYMONTH => [ 10, 11, 12 ]     or 
+      BYMONTH => [ qw(10 11 12) ]
+
+    but NOT:
+
+      BYMONTH => 10, 11, 12       #  NOT!
+
+    DTSTART value can be given explicitly, otherwise it will be taken from
+    'period' or from the set.
+
+    NOTE: "DTSTART" is *ALWAYS* included in the recurrence set, whether or
+    not it matches the rule. Use "include_dtstart => 0" to override this.
+    Use "exclude_dtstart => 1" to *NEVER* include "DTSTART" value in the
+    set.
+
+    NOTE: Some recurrences may give very big or even infinity sized sets.
+    The current implementation does not detect some of these cases and they
+    might crash your system.
+
+    NOTE: The RFC specifies that FREQ is *not* optional.
+
+    There are two operating modes: without 'period' it will filter out the
+    rule from the set; with 'period' it will filter out the rule from the
+    period, then add the list to the set.
+
+    The datatype for 'period' is Date-Set.
+
+  exclude_by_rule
+
+    Deprecated. Replaced by 'exclude'.
+
+        exclude_by_rule ( period => date-set, DTSTART => time,
+            BYMONTH => [ list ],     BYWEEKNO => [ list ],
+            BYYEARDAY => [ list ],   BYMONTHDAY => [ list ],
+            BYDAY => [ list ],       BYHOUR => [ list ],
+            BYMINUTE => [ list ],    BYSECOND => [ list ],
+            BYSETPOS => [ list ],
+            UNTIL => time, FREQ => freq, INTERVAL => n, COUNT => n,
+            WKST => day )
+
+    Implements EXRULE (exclusion-rule) from RFC2445.
+
+    'period' is optional.
+
+  recur_by_date
+
+    Deprecated. Replaced by 'event'.
+
+        recur_by_date( list => [time1, time2, ...] )
+
+    Adds the (scalar) list to the set, or creates a new list.
+
+    This Date::Set will recur on each item of the list provided. This method
+    lets you add items to a set of dates. If you call it multiple times,
+    entries from previous calls will be preserved. If you need to delete
+    them again, use exclude_by_date.
+
+  exclude_by_date
+
+    Deprecated. Replaced by 'exclude'.
+
+        exclude_by_date( list => [time1, time2, ...] )
+
+    Removes each element of the list from the set.
 
   occurrences
 
-            occurrences( period => date-set )
+    Deprecated. Replaced by 'during'.
 
-    Returns the occurrences for a given period.
+        occurrences( period => date-set )
 
-INHERITED METHODS
+    Returns the occurrences for a given period. In other words, "when does
+    this event occur during the given period?"
+
+  next_year, next_month, next_week, next_day, next_hour, next_minute, next_weekyear ($date_set)
+
+  this_year, this_month, this_week, this_day, this_hour, this_minute, this_weekyear ($date_set)
+
+  prev_year, prev_month, prev_week, prev_day, prev_hour, prev_minute, prev_weekyear ($date_set)
+
+        $next  = next_month( $date_set ) 
+        $whole = this_year ( $date_set )    # [20010101..20020101)
+
+    Returns the next/prev/this unit of time for a given period.
+
+    It answers questions like, "when is next month for the given period?",
+    "which years are covered by this period?"
+
+  as_years, as_months, as_weeks, as_days, as_hours, as_minutes, as_weekyears ($date_set)
+
+        as_months( date-set ) 
+        as_weeks ( date-set ) 
+
+    Returns the given period in a 'unit of time' form.
+
+    It answers questions like, "which months we have in this period?",
+    "which years are covered by this period?"
+
+    See also previous note on 'weekyear' in 'About ISO 8601 week'.
+
+INHERITED 'SET LOGIC' FUNCTIONS
     These methods are inherited from Set::Infinite.
 
-  Logic
+  intersects
 
         $logic = $a->intersects($b);
+
+  contains
+
         $logic = $a->contains($b);
+
+  is_null
+
         $logic = $a->is_null;
 
-  Set
+  is_too_complex
+
+    Sometimes a set might be too complex to print. It will happen when you
+    ask for 'every year' (a recurrence) but don't specify a starting and
+    ending date.
+
+        $recurr = Date::Set->event( rule = 'FREQ=YEARLY' );  
+        print $recurr;                   # "Too Complex" 
+        print $recurr->is_too_complex;   # "1"
+        $recurr->during( start => '20020101', end => '20050101' );
+        print $recurr;                   # "20020101,20030101,20040101,20050101"
+        print $recurr->is_too_complex;   # "0"
+
+INHERITED 'SET' FUNCTIONS
+    These methods are inherited from Set::Infinite.
+
+  union
 
         $i = $a->union($b);     
+
+  intersection
+
         $i = $a->intersection($b);
+
+  complement
+
         $i = $a->complement;
+
         $i = $a->complement($b);
-        $i = $a->span;   
 
-  Scalar
+INHERITED 'SPECIAL' FUNCTIONS
+    These methods are inherited from Set::Infinite.
 
-        $i = $a->min;
-        $i = $a->max;
-        $i = $a->size;  
+  min, max
 
-  Other set methods
+    Returns the 'begin' or 'end' of a set. 'date_ical' function returns the
+    actual Date::ICal object they point to.
 
-        $a->real;
-        $a->integer;
+        $date1 = $set1->min->date_ical;    # the first Date::ICal object in the set
 
-        quantize( parameters )
-                Makes equal-sized subsets.
+        $date2 = $set1->max->date_ical;    # the last Date::ICal object in the set
 
-        select( parameters )
+    Warning: modifying an object data might break your program.
 
-            Selects set members based on their ordered positions.
-            Selection is more useful after quantization.
+  list
 
-            freq     - default=1
-            by       - default=[0]
-            interval - default=1
-            count    - dafault=infinite
+    Splits a set in simpler, 1-period sets.
 
-        offset ( parameters )
+        print $set1;              #  [20010101..20020101],[20030101..20040101]
+        @subset = $set1->list;
+        print $subset[0];         #  [20010101..20020101]
+        print $subset[1];         #  [20030101..20040101]
 
-            Offsets the subsets.
+        print $subset[0]->min->date_ical;    # 20010101
+        print $subset[0]->max->date_ical;    # 20020101
 
-            value   - default=[0,0]
-            mode    - default='offset'. Possible values are: 'offset', 'begin', 'end'.
+    This shortcut might work for simple sets, but you should avoid it:
 
-        type($i)
+        print $set1->{list}->[0]->min->date_ical;    # 20010101 - DON'T DO THIS
 
-            chooses an object data type. 
+    Complex sets might take a long time (and a lot memory) to 'list'.
 
-            type('Set::Infinite::Date');
+    Unbounded recurrences should not be list'ed, because they generate
+    infinite or even invalid (empty) lists. If you are not sure what type of
+    set you have, you can test it with is_too_complex() function.
 
-        tolerance(0)    defaults to real sets (default)
-        tolerance(1)    defaults to integer sets
+  size
 
-    Note: 'unit' parameter can be years, months, days, weeks, hours,
-    minutes, or seconds.
+  offset
+
+  select
+
+  quantize
+
+  iterate
+
+  new
+
+    See Set::Infinite documentation.
+
+  copy
+
+        $b = $a->copy;
+
+    Returns a copy of the object.
+
+    This is useful if you want to use one of the subroutine methods, without
+    changing the original object.
+
+COOKBOOK
+  Create a new, empty set
+
+        $a = Date::Set->new();
+
+        $a = Date::Set->event( at => [] );
+
+        $a = Date::Set->during();
+
+  Exclude a date from a set
+
+    TODO
+
+  Adding a whole year
+
+        $year = Date::Set->event( at => '20020101' );
+        $a->event( at => (  $year->as_years ) );
+
+    This is not the same thing, since it includes a bit of next year:
+
+        $a->event( start => '20020101', end => '20030101' );
+
+    This is not the same thing, since it misses a bit of this year (a
+    fraction of last second):
+
+        $a->event( start => '20020101', end => '20021231T235959' );
+
+  Using 'during' and 'exclude' to put boundaries on a recurrence
+
+        $a->event( rule => 'FREQ=YEARLY;INTERVAL=2' );
+        $a->during( start => $today, end => $year_2020 );
+
+        $a->event( rule => 'FREQ=YEARLY;INTERVAL=2' );
+        $a->exclude( end => $today);
+        $a->exclude( start => $year_2020 );
+
+  Application of this/next/prev
+
+    TODO
+
+API INSTABILITIES
+    These are more likely to change:
+
+        - Some method and parameter names may change if we can find better names.
+
+        - support to next/prev/this and as_xxx MAY be deleted in future versions
+          if they don't prove to be useful.
+
+        - 'duration' and 'period' methods MAY change in future versions, to generate open-ended sets.
+        Possibly by using parameter names 'after' and 'before' instead of 'start' and 'end' 
+
+        - accepting timezones
+
+        - use more of Date::ICal methods for time calculations
+
+    Some behaviour is yet undefined:
+
+        - what happens when asked for '31st day of month', when month has less
+        than 31 days?
+
+        - does it work when using fractional seconds?
+
+    These might change, but they are not likely:
+
+        - Accepting string dates MAY be deleted in future versions. 
+
+  POD TODO
+
+        - more SYNOPSIS
+
+        - more COOKBOOK
+
+        - more INHERITED METHODS
+
+        - as_years, next_year: explain this and give more examples, cookbook-style.
+
+        - more 'OLD-API'
+
+        - include the functions to check/set 'open-begin' and 'open-end' intervals
+
+        - include internal methods
+
+  POD CHANGES
+
+        20020311 
+
+        - added POD-TODO and POD-CHANGES
+        - more 'DESCRIPTION'
+        - added 'start' option to 'rule'
+        - added 'is_too_complex'
+        - changes in API-INSTABILITIES
+        - Move INHERITED-FUNCTIONS one level up
+        - added 'undefined-behaviour' sub-section
+        - warn about encapsulation 
+
+        20020312
+
+        - merged options 'at' and 'date_set'
+        - added timeline diagrams
+        - more on 'wkst', min, max, list
+        - explain open-begin and open-end sets
+
+        20020313
+
+        - more timelines
+        - include 'size'
+        - more info about boundaries in exclude/during, in COOKBOOK
+        - info about calling functions without parameters
+        - moved methods not yet implemented to TODO file
+
+        20020318
+
+        - 'is_too_complex' and 'copy' moved to Set::Infinite
 
 AUTHOR
-            Flavio Soibelmann Glock <fglock@pucrs.br>
+    Flavio Soibelmann Glock <fglock@pucrs.br> with the Reefknot team.
+
+    Jesse <>, srl <>, and Mike Heins <> contribute on coding style,
+    documentation, and testing.
 

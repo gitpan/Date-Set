@@ -1,5 +1,18 @@
 Revision history for Perl extension Date::Set.
 
+1.23
+    more docs
+    make_readme.pl updates README
+    make_htmldoc.pl makes Date-Set.html
+    bigger TODO with new API
+    rename print -> _print
+    deprecated "event-empty"
+    t/api2 new api tests
+    uses "copy" and "is_too_complex" implemented in Set::Infinite 0.36
+    'event', 'during', and 'exclude'
+    requires Set::Infinite 0.36
+    recurrence 'UNTIL' works as end-boundary 
+
 1.21
     t/rfc2445.t complete
     Set.pm is 10% faster with new "BYDAY" routine
