@@ -20,7 +20,7 @@ use Carp;
 @ISA       = qw(Set::Infinite);
 @EXPORT    = qw();
 @EXPORT_OK = qw(type);
-$VERSION = (qw'$Revision: 1.20 $')[1];
+$VERSION = (qw'$Revision: 1.21 $')[1];
 
 =head1 NAME
 
@@ -648,6 +648,8 @@ sub _rrule_by {
     print " [EVALUATING RRULE HAS  ",join(':',%has)," ]\n" if $DEBUG;
     my $wkst = $WEEKDAY{ $parm{WKST} };
 
+    my $base = $when;  # this is what we had after "FREQ"
+
     # {{{ evaluation order: BYMONTH, BYWEEKNO, BYYEARDAY, BYMONTHDAY, BYDAY, BYHOUR,
     # BYMINUTE, BYSECOND and BYSETPOS; then COUNT and UNTIL
 
@@ -736,77 +738,28 @@ sub _rrule_by {
 
         if ( $#indexed_byday >= 0 ) {
             # indexed BYDAY
-            # print " [Indexed BYDAY (" . $indexed_byday[0] . ") ]\n";
-
-
-            # TODO -- "Indexed BYDAY" algorithm is very, very complex and inneficient
-            # - it needs to be *much* simplified!
-            # should use quantize/offset instead of iterate/select method
-
-
-            # look at FREQ and create $base
-            # this was taken from the examples in the RFC 
-            #   - the text is not clear if it should use MONTHLY at all!
-            my $base;
-            if ( ( $parm{FREQ} eq 'YEARLY' ) and not( exists $parm{BYMONTH} ) ) {
-                # -- YEARLY
-                # changed back to *not use* WKST
-                $base = $BYDAY->quantize(
-                    # unit   => 'weekyears',   # doesn't work -- Fails test "27": 20th week of year
-                    unit   => 'years',
-                    strict => 0,
-                    # wkst   => $wkst,         # no! fails test "27"
-                    fixtype => 0 );
-                $base->print( title => 'YEARLY' ) if $DEBUG;
-            } else {
-                # -- MONTHLY
-                # looks like should NOT use WKST here --
-                # although there is no definition for "first week of month"
-                $base = $BYDAY->quantize( 
-                    unit => 'months', 
-                    strict => 0,
-                    fixtype => 0 );
-                $base->print( title => 'MONTHLY' ) if $DEBUG;
-            }
-
-            # iterate through parameters
-            my @index = ();
-            my @by    = ();
+            # reuse "base" since we already know it from FREQ
+            # -- iterate through parameters
             $indexed = $NEVER;
             foreach (@indexed_byday) {
-
                 # parse parameters
                 my ( $index, $day ) = /([\-\+]?\d+)(\w\w)/;
+                print " [Indexed BYDAY: $index $day ]\n" if $DEBUG;
                 $index-- if $index > 0;   # perl index starts in 0 instead of 1
                 $day = $WEEKDAY{$day};
-
-                # print " [Indexed BYDAY: $index $day, base $base ]\n";
-
-                # find out week day
-                my $weekday =
-                    # -- NO wkst here - we would have a wrong offset!
-                    $BYDAY->quantize( unit => 'weeks', strict => 0, fixtype => 0 )
-                    ->print( title => 'weeks' )
-                    ->offset(
-                        mode   => 'begin',
-                        unit   => 'days',
-                        value  => [ $day, $day + 1 ],
-                        strict => 0, fixtype => 0 );
-                $weekday->print( title => 'DAYS:' ) if $DEBUG;
-
-                # iterate through $base (months or years) finding out week day index
-                $indexed = 
-                    $indexed->union( 
-                        $base->iterate( sub {
-                            $_[0]->print( title => 'month' ) if $DEBUG;
-                            $_[0]->intersection($weekday)
-                              ->print( title => 'month-weekday' )
-                              ->select( by   => [$index] )
-                              ->print( title => 'selected' );
-                        } ) );
-
+                # print " [Indexed BYDAY: $index $day ]\n" if $DEBUG;
+                my $weekday = $base->offset( 
+                    mode => 'offset', 
+                    unit => 'weekdays', 
+                    value => [ $day, $day ] );
+                $weekday->print( title => "WEEKDAYS: $day " ) if $DEBUG;
+                $weekday = $weekday->offset( 
+                    mode => 'circle', 
+                    unit => 'days', 
+                    value => [ $index * 7, $index * 7 + 1 ] );
+                $weekday->print( title => "DAYS: $index weeks" ) if $DEBUG;
+                $indexed = $indexed->union( $weekday );
                 $indexed->print( title => 'BYDAY-INDEX:' . $index . ',' . $day ) if $DEBUG;
-
             }
         }
         else {

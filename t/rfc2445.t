@@ -461,15 +461,15 @@ $title="***  Monthly on the first and last day of the month for 10 occurrences  
 #
 	# make a period from 1995 until 1999
 	$period = Date::Set->period( time => ['19950101Z', '19990101Z'] );
-	$a = Date::Set->event->dtstart( start => '19970930T090000' )
+	$a = Date::Set->event->dtstart( start => '19970930T090000Z' )
 		->recur_by_rule( RRULE=>'FREQ=MONTHLY;COUNT=10;BYMONTHDAY=1,-1' )
 		->occurrences( period => $period );
 	is("$a", 
-		'19970930T090000,19971001T110000Z,' .
-    '19971031T110000Z,19971101T110000Z,19971130T110000Z,' .
-    '19971201T110000Z,19971231T110000Z,' .
-    '19980101T110000Z,19980131T110000Z,' .
-    '19980201T110000Z',
+		'19970930T090000Z,19971001T090000Z,' .
+    '19971031T090000Z,19971101T090000Z,19971130T090000Z,' .
+    '19971201T090000Z,19971231T090000Z,' .
+    '19980101T090000Z,19980131T090000Z,' .
+    '19980201T090000Z',
     $title);
 
 
@@ -555,14 +555,14 @@ $title="***  Every other year on January, February, and March for 10 occurrences
 #
 	# make a period from 1995 until 2004
 	$period = Date::Set->period( time => ['19950101Z', '20040101Z'] );
-	$a = Date::Set->event->dtstart( start => '19970310T090000' )
+	$a = Date::Set->event->dtstart( start => '19970310T090000Z' )
 		->recur_by_rule( RRULE=>'FREQ=YEARLY;INTERVAL=2;COUNT=10;BYMONTH=1,2,3' )
 		->occurrences( period => $period );
 	is("$a", 
-		'19970310T090000,' .
-		'19990110T110000Z,19990210T110000Z,19990310T110000Z,' .
-		'20010110T110000Z,20010210T110000Z,20010310T110000Z,' .
-		'20030110T110000Z,20030210T110000Z,20030310T110000Z', $title);
+		'19970310T090000Z,' .
+		'19990110T090000Z,19990210T090000Z,19990310T090000Z,' .
+		'20010110T090000Z,20010210T090000Z,20010310T090000Z,' .
+		'20030110T090000Z,20030210T090000Z,20030310T090000Z', $title);
 
 $title="***  Every 3rd year on the 1st, 100th and 200th day for 10 occurrences  ***";
 #
@@ -579,16 +579,16 @@ $title="***  Every 3rd year on the 1st, 100th and 200th day for 10 occurrences  
 #
 	# make a period from 1995 until 2007
 	$period = Date::Set->period( time => ['19950101Z', '20070101Z'] );
-	$a = Date::Set->event->dtstart( start => '19970101T090000' )
+	$a = Date::Set->event->dtstart( start => '19970101T090000Z' )
 		->recur_by_rule( RRULE=>'FREQ=YEARLY;INTERVAL=3;COUNT=10;BYYEARDAY=1,100,200' )
 		->occurrences( period => $period );
 	is("$a", 
-		'19970101T090000,' .
-    '19970410T110000Z,19970719T110000Z,' .
-    '20000101T110000Z,' .
-    '20000409T110000Z,20000718T110000Z,' .
-    '20030101T110000Z,20030410T110000Z,20030719T110000Z,' .
-    '20060101T110000Z',
+		'19970101T090000Z,' .
+    '19970410T090000Z,19970719T090000Z,' .
+    '20000101T090000Z,' .
+    '20000409T090000Z,20000718T090000Z,' .
+    '20030101T090000Z,20030410T090000Z,20030719T090000Z,' .
+    '20060101T090000Z',
     $title);
 
 ########### TEST 27
@@ -605,11 +605,11 @@ $title="***  Every 20th Monday of the year, forever  ***";
 #
 	# make a period from 1995 until 2000
 	$period = Date::Set->period( time => ['19950101Z', '20000101Z'] );
-	$a = Date::Set->event->dtstart( start => '19970519T090000' )
+	$a = Date::Set->event->dtstart( start => '19970519T090000Z' )
 		->recur_by_rule( RRULE=>'FREQ=YEARLY;BYDAY=20MO' )
 		->occurrences( period => $period );
 	is("$a", 
-		'19970519T090000,19980518T110000Z,19990517T110000Z', $title);
+		'19970519T090000Z,19980518T090000Z,19990517T090000Z', $title);
 
 $title="***  Monday of week number 20 (where the default start of the week i  ***";
 #   Monday), forever:
@@ -624,11 +624,11 @@ $title="***  Monday of week number 20 (where the default start of the week i  **
 #
 	# make a period from 1995 until 2000
 	$period = Date::Set->period( time => ['19950101Z', '20000101Z'] );
-	$a = Date::Set->event->dtstart( start => '19970512T090000' )
+	$a = Date::Set->event->dtstart( start => '19970512T090000Z' )
 		->recur_by_rule( RRULE=>'FREQ=YEARLY;BYWEEKNO=20;BYDAY=MO' )
 		->occurrences( period => $period );
 	is("$a", 
-		'19970512T090000,19980511T110000Z,19990517T110000Z', $title);
+		'19970512T090000Z,19980511T090000Z,19990517T090000Z', $title);
 
 $title="***  Every Thursday in March, forever  ***";
 #
@@ -722,7 +722,7 @@ $title="***  The first Saturday that follows the first Sunday of the month  ***"
 		->recur_by_rule( RRULE=>'FREQ=MONTHLY;BYDAY=SA;BYMONTHDAY=7,8,9,10,11,12,13' )
 		->occurrences( period => $period );
 	is("$a", 
-		'19970913T090000Z,19971011T090000Z,' .
+    '19970913T090000Z,19971011T090000Z,' .
     '19971108T090000Z,19971213T090000Z,' .
     '19980110T090000Z,19980207T090000Z,19980307T090000Z,' .
     '19980411T090000Z,19980509T090000Z,19980613T090000Z,' .
@@ -744,12 +744,12 @@ $title="***  Every four years, the first Tuesday after a Monday in November  ***
 #
 	# make a period from 1995 until 2005
 	$period = Date::Set->period( time => ['19950101Z', '20050101Z'] );
-	$a = Date::Set->event->dtstart( start => '19961105T090000' )
+	$a = Date::Set->event->dtstart( start => '19961105T090000Z' )
 		->recur_by_rule( RRULE=>
        'FREQ=YEARLY;INTERVAL=4;BYMONTH=11;BYDAY=TU;BYMONTHDAY=2,3,4,5,6,7,8' )
 		->occurrences( period => $period );
 	is("$a", 
-		'19961105T090000,20001107T110000Z,20041102T110000Z',
+		'19961105T090000Z,20001107T090000Z,20041102T090000Z',
     $title);
 
 
