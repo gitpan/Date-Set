@@ -1,0 +1,7 @@
+Revision history for Perl extension Date::Set.
+
+0.01
+	derived from Set::Infinite 0.30
+	requires Date::ICal
+	'our' changed to 'use vars'
+

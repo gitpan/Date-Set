@@ -1,0 +1,124 @@
+TODO - Date-Set version 0.01 
+
+RRULE
+
+	ical.pl: BYWEEKNO / WKST
+	ical.pl: test bysetpos
+	ical.pl: check behaviour when mixing rule parts (BYWEEKNO + BYYEARDAY);
+	-- see end of 4.3.10 in RFC2445
+	-- check how to integrate with DTSTART
+	ical.pl: put UNTIL inside rrule
+	ical.pl: where do DTSTART", "DTEND", "DUE", "EXDATE" and "RDATE" belong?
+	better DURATION
+	TZID
+
+	This looks wrong - is it?
+	   "FREQ=YEARLY;BYMONTH=1,2" increases the number of days within the
+	   yearly recurrence set from 1 (if BYMONTH tag is not present) to 2.
+
+SYNTAX
+
+	remove iterate ?
+	'iterate' options 'no-sort', 'no-merge', 'keep-null' ...
+
+	sort by[] -- 0 1 2 ... freq-3 freq-2 freq-1
+
+	ical.pl: enter data as epoch; translate on exit.
+	use DTSTART as default hour, minute, ...
+
+	extra: wrappers (like: weekday('thursday') )
+	some tough cases: yearweek(10) monthweek(2)
+	-- partly done: ICalSet.pm
+
+	check: RFC2445 support completeness
+
+	'select' switch for negative-index overflow behaviour (end of subset, or end of freq)
+	tests: add test for negative 'by'
+
+	negative values in select should count backwards from end
+	-- test! insert debug -- ical.pl 134 should show 2001-09-30
+
+	remove 'interval' option from select
+
+	old: correct syntax problems due to accepting ( [ 1 .. 10 ] ) as input - see POD.
+
+	make 'freq' work with 'days', etc.
+
+	extra: make offset accept ICal times
+
+	extra: offset option "middle"
+
+	extra: "indexes" filter to help dealing with sparse lists:
+	(,,10,,12,,14,,,)->indexes gives (2,4,6)
+
+	extra: Make a 'strict' option for "quantize" and other filters, 
+	that will intersect
+	each unit back to the object, that is:
+	Interval:                     [************************]
+	Quantized:                [*********)[*********)[*********)
+	Quantized->Stricted:          [*****)[*********)[******]
+
+	think about: "push-pop", "dup", "drop" mechanism
+
+	think about: some "if-else" mechanism
+
+TESTS
+
+	make t/icalset.t
+
+	old: fix Bigfloat tests
+
+	put 't/element_inf.t' back
+
+	test fractional seconds
+
+DOCUMENTATION
+
+	check: POD formatting 
+
+	verify, document parameter syntax everywhere
+
+	document:
+		new module 'ICalSet'
+		new method 'compact'
+		offset option 'mode=>circle'
+		new method 'list'
+		iterate
+		no_cleanup
+
+	document '->trace({options})->' method
+
+	document: quantize extensibility through hash-subs
+
+CACHEING
+
+	cache quantize by month/day/...
+	-- doesn't work if 'quant' is changed
+	-- doesn't check 'intersects'
+
+	make a 'flush'-cache method. Make a 'cache-registry'.
+
+	think about: caching for union, etc  
+
+	extra: caching for the filters. 
+
+OTHER
+
+	find a better (bigger span) gmtime/timegm -- Date::Calc or Date::Manip
+
+	check for negative-epoch errors (quantize, select, offset).
+
+	remove a lot of debug #-print lines
+
+	internal: it may be good to have a pointer to the "root" object
+	in the filters. They already have a "parent" pointer.
+
+	oo: provide a general filter "install" mechanism (quantize, select, etc)
+	check: cleanup "type" hack
+
+	extra: syntax for quantize: ...->quantize('years')
+
+	old: Make a global mode for `open_*' 
+
+	old: Quantize_Date should care of daylight savings time
+

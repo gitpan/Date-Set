@@ -1,0 +1,12 @@
+Changes
+MANIFEST
+README
+Todo.txt
+Makefile.PL
+lib/Date/Set.pm
+lib/Date/Set/ICal.pm
+
+eg/ical.pl
+eg/recurring.pl
+
+t/ical.t

@@ -1,0 +1,126 @@
+NAME
+    Date::Set - Date set math
+
+SYNOPSIS
+            use Date::Set;
+
+            my $interval = Date::Set->new('20010501')->quantize(unit=>'months');
+            print "This month: ", $interval, "\n\n";
+            print "Weeks this month: ", $interval->quantize(unit=>'weeks'), "\n\n";
+            print "Tuesdays this month: ", $interval->quantize(unit=>'weeks')->
+                offset( mode => 'begin', unit=>'days', value => [ 2, 3] );
+
+DESCRIPTION
+    Date::Set is a module for date/time sets.
+
+    It requires Date::ICal. If you don't need ICal functionality, use
+    Set::Infinite instead.
+
+METHODS
+  event
+
+            event()
+
+    Constructor. Returns 'forever', that is: (-Inf .. Inf)
+
+  period
+
+            period( time => [time1, time2] )
+
+    Another constructor. Returns [time1 .. time2]
+
+  dtstart
+
+            dtstart( start => time1 )
+
+    Yet another constructor. Returns [time1 .. Inf)
+
+  duration
+
+            duration( unit => months, duration => 10 )
+
+    All intervals are modified to 'duration'.
+
+    'unit' parameter can be years, months, days, weeks, hours, minutes, or
+    seconds.
+
+  rrule
+
+        rrule ( BYMONTH => [ list ], BYWEEKNO => [ list ],
+            BYYEARDAY => [ list ],   BYMONTHDAY => [ list ],
+            BYDAY => [ list ],       BYHOUR => [ list ],
+            BYMINUTE => [ list ],    BYSECOND => [ list ],
+            BYSETPOS => [ list ],
+            UNTIL => time, FREQ => freq, INTERVAL => n, COUNT => n )
+
+    Implements RRULE from RFC2445. (some documentation needed!)
+
+  occurrences
+
+            occurrences( period => date-set )
+
+    Returns the occurrences for a given period.
+
+INHERITED METHODS
+    These methods are inherited from Set::Infinite.
+
+  Logic
+
+        $logic = $a->intersects($b);
+        $logic = $a->contains($b);
+        $logic = $a->is_null;
+
+  Set
+
+        $i = $a->union($b);     
+        $i = $a->intersection($b);
+        $i = $a->complement;
+        $i = $a->complement($b);
+        $i = $a->span;   
+
+  Scalar
+
+        $i = $a->min;
+        $i = $a->max;
+        $i = $a->size;  
+
+  Other set methods
+
+        $a->real;
+        $a->integer;
+
+        quantize( parameters )
+                Makes equal-sized subsets.
+
+        select( parameters )
+
+            Selects set members based on their ordered positions.
+            Selection is more useful after quantization.
+
+            freq     - default=1
+            by       - default=[0]
+            interval - default=1
+            count    - dafault=infinite
+
+        offset ( parameters )
+
+            Offsets the subsets.
+
+            value   - default=[0,0]
+            mode    - default='offset'. Possible values are: 'offset', 'begin', 'end'.
+
+        type($i)
+
+            chooses an object data type. 
+
+            type('Set::Infinite::Date');
+
+        tolerance(0)    defaults to real sets (default)
+        tolerance(1)    defaults to integer sets
+
+    Note: 'unit' parameter can be years, months, days, weeks, hours,
+    minutes, or seconds.
+
+AUTHOR
+            Flavio Soibelmann Glock <fglock@pucrs.br>
+
